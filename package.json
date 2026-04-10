@@ -1,0 +1,28 @@
+{
+  "name": "thinking-modes-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server providing structured thinking modality tools for AI agents — sequential reasoning, polarity mapping, AQAL analysis, shadow work, and Unity multi-system synthesis.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "thinking-modes-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
