@@ -6,8 +6,15 @@ import type {
   EpistemicStatus,
   SuggestedTool,
   CynefinDomain,
+  ThoughtType,
 } from "../types.js";
-import { CYNEFIN_RESPONSES } from "../constants.js";
+import { CYNEFIN_RESPONSES, CHARACTER_LIMIT } from "../constants.js";
+import { composeToolContent } from "../utils/content-pipeline.js";
+
+function enforceLimit(text: string): string {
+  if (text.length <= CHARACTER_LIMIT) return text;
+  return text.substring(0, CHARACTER_LIMIT - 200) + "\n\n---\n*Output truncated due to size limit.*";
+}
 
 // ─── Domain Detection Engine ─────────────────────────────────────────────────
 
@@ -207,6 +214,21 @@ function generateCharacteristics(
   timePressure: string,
   stakes: string
 ): string[] {
+  const fullText = `${situation}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_cynefin",
+    text: fullText,
+    initialPosition: situation,
+    mode: "analytical",
+    stepNumber: 2,
+    totalSteps: 4,
+    thoughtType: "analytical" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) {
+    return composerAttempt.split("\n").filter((line) => line.trim().length > 0);
+  }
+
   const baseCharacteristics: Record<CynefinDomain, string[]> = {
     clear: [
       "Cause-and-effect relationships are obvious and agreed upon by all parties",
@@ -278,6 +300,19 @@ function generateBoundaryAnalysis(
   domain: CynefinDomain,
   situation: string
 ): string {
+  const fullText = `${situation}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_cynefin",
+    text: fullText,
+    initialPosition: situation,
+    mode: "analytical",
+    stepNumber: 3,
+    totalSteps: 4,
+    thoughtType: "prospective" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const adjacentDomains: Record<CynefinDomain, CynefinDomain[]> = {
     clear: ["complicated", "chaotic"],
     complicated: ["clear", "complex"],
@@ -439,6 +474,20 @@ function formatCynefinClassification(params: {
   const truncate = (s: string, max: number) =>
     s.length > max ? s.substring(0, max) + "..." : s;
 
+  const mode = params.mode;
+
+  const fullText = `${situation} ${decisionContext} ${knownVariables ?? ""}`;
+  const toolComposerAttempt = composeToolContent({
+    toolName: "think_cynefin",
+    text: fullText,
+    initialPosition: situation,
+    mode: "analytical",
+    stepNumber: 4,
+    totalSteps: 4,
+    thoughtType: "corrective" as ThoughtType,
+    previousOutputs: [],
+  });
+
   let output = `## Cynefin Domain Classification
 
 **Situation:** ${truncate(situation, 120)}
@@ -454,6 +503,23 @@ function formatCynefinClassification(params: {
     output += `\n**Known Variables:** ${knownVariables}\n`;
   }
 
+  if (mode === 'executive') {
+    output += `
+### Recommended Action
+**Approach:** ${domainConfig.approach}
+**Leadership Stance:** ${domainConfig.leadership_stance}
+**Best-Matched Tools:** ${domainConfig.best_tool_match.join(", ")}
+
+### ⚠️ Misclassification Warning
+${toolComposerAttempt.length >= 50 ? toolComposerAttempt + "\n\n" + generateMisclassificationWarning(classification.domain, situation) : generateMisclassificationWarning(classification.domain, situation)}
+
+### Meta-Analysis
+Epistemic Status: ${epistemicStatus}
+Suggested Follow-up: ${suggestedFollowups.join(", ")}
+`;
+    return output;
+  }
+
   output += `
 ### Supporting Characteristics
 ${characteristics.map((c) => `- ${c}`).join("\n")}
@@ -462,9 +528,10 @@ ${characteristics.map((c) => `- ${c}`).join("\n")}
 **Approach:** ${domainConfig.approach}
 **Leadership Stance:** ${domainConfig.leadership_stance}
 **Best-Matched Tools:** ${domainConfig.best_tool_match.join(", ")}
+${toolComposerAttempt.length >= 50 ? "\n### Tool Recommendations\n" + toolComposerAttempt : ""}
 
 ### ⚠️ Misclassification Warning
-${generateMisclassificationWarning(classification.domain, situation)}
+${toolComposerAttempt.length >= 50 ? toolComposerAttempt + "\n\n" + generateMisclassificationWarning(classification.domain, situation) : generateMisclassificationWarning(classification.domain, situation)}
 
 ### Meta-Analysis
 Epistemic Status: ${epistemicStatus}
@@ -494,7 +561,7 @@ ${generateBoundaryAnalysis(classification.domain, situation)}
 `;
   }
 
-  return output;
+  return enforceLimit(output);
 }
 
 // ─── Tool Registration ───────────────────────────────────────────────────────

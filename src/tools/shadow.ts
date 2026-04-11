@@ -5,9 +5,43 @@ import {
   LINES_OF_DEVELOPMENT,
 } from "../constants.js";
 import { formatShadowReport } from "../utils/formatters.js";
-import type { EpistemicStatus, SuggestedTool, OutputMode } from "../types.js";
+import { composeToolContent } from "../utils/content-pipeline.js";
+import type { EpistemicStatus, SuggestedTool, ThoughtType, SubjectType } from "../types.js";
 
 const OUTPUT_DEPTH_ENUM = z.enum(["essential", "standard", "exhaustive"]);
+
+// ─── Subject Type Detection ──────────────────────────────────────────────────
+
+function detectSubjectType(
+  behavioralData: string,
+  context: string,
+  selfDescription: string,
+): SubjectType {
+  const combined = `${behavioralData} ${context} ${selfDescription}`.toLowerCase();
+
+  const aiSignals = ["model", "agent", "ai ", "ai\n", "neural", "training", "inference", "prompt", "llm", "language model", "algorithm", "system output", "generation", "token", "embedding"];
+  const orgSignals = ["team", "organization", "company", "department", "management", "culture", "workflow", "velocity", "sprint", "standup", "silo", "stakeholder"];
+  const techSignals = ["api", "microservice", "database", "pipeline", "deployment", "infrastructure", "server", "container", "kubernetes", "docker", "cloud", "service mesh", "monolith"];
+
+  const aiScore = aiSignals.filter(s => combined.includes(s)).length;
+  const orgScore = orgSignals.filter(s => combined.includes(s)).length;
+  const techScore = techSignals.filter(s => combined.includes(s)).length;
+
+  // Check for mixed subject: two or more scores within 1 of max AND >= 2
+  const maxScore = Math.max(aiScore, orgScore, techScore);
+  if (maxScore >= 2) {
+    const closeCount = [aiScore, orgScore, techScore].filter(s => s >= maxScore - 1).length;
+    if (closeCount >= 2) return "mixed";
+  }
+
+  if (aiScore >= 2 && aiScore >= orgScore && aiScore >= techScore) return "ai-system";
+  if (orgScore >= 2 && orgScore >= aiScore && orgScore >= techScore) return "organization";
+  if (techScore >= 2 && techScore >= aiScore && techScore >= orgScore) return "technical-system";
+
+  return "human";
+}
+
+// ─── Depth Scaler ─────────────────────────────────────────────────────────────
 
 function scaleDepth(depth: string, base: string, expanded: string, comprehensive: string): string {
   switch (depth) {
@@ -21,7 +55,7 @@ function scaleDepth(depth: string, base: string, expanded: string, comprehensive
 }
 
 function analyzeFreudian(
-  _behavioralData: string,
+  behavioralData: string,
   selfDescription: string,
   othersDescription: string,
   contradictions: string,
@@ -29,6 +63,18 @@ function analyzeFreudian(
   dreamsFantasies: string,
   depth: string,
 ): string {
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: `${behavioralData} ${selfDescription} ${othersDescription} ${contradictions} ${triggers} ${dreamsFantasies}`,
+    initialPosition: selfDescription,
+    mode: "analytical",
+    stepNumber: 1,
+    totalSteps: 4,
+    thoughtType: "perspectival" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = [
     `**Repression Dynamics:** The behavioral data reveals patterns consistent with Freudian repression mechanisms. The gap between self-description ("${selfDescription.slice(0, 100)}") and others' description ("${othersDescription.slice(0, 100)}") suggests material that has been pushed from consciousness into the unconscious.`,
     ``,
@@ -67,7 +113,7 @@ function analyzeFreudian(
 }
 
 function analyzeJungian(
-  _behavioralData: string,
+  behavioralData: string,
   selfDescription: string,
   othersDescription: string,
   contradictions: string,
@@ -75,6 +121,18 @@ function analyzeJungian(
   dreamsFantasies: string,
   depth: string,
 ): string {
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: `${behavioralData} ${selfDescription} ${othersDescription} ${contradictions} ${triggers} ${dreamsFantasies}`,
+    initialPosition: selfDescription,
+    mode: "analytical",
+    stepNumber: 2,
+    totalSteps: 4,
+    thoughtType: "perspectival" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = [
     `**Shadow Constellation:** The behavioral data reveals a shadow constellation — patterns of behavior, emotion, and perception that the conscious personality has disowned. The discrepancy between self-description ("${selfDescription.slice(0, 100)}") and others' observation ("${othersDescription.slice(0, 100)}") delineates the boundary of the current persona and points to what lies behind it in the shadow.`,
     ``,
@@ -119,6 +177,18 @@ function analyzeGestalt(
   dreamsFantasies: string,
   depth: string,
 ): string {
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: `${behavioralData} ${selfDescription} ${othersDescription} ${contradictions} ${triggers} ${dreamsFantasies}`,
+    initialPosition: selfDescription,
+    mode: "analytical",
+    stepNumber: 3,
+    totalSteps: 4,
+    thoughtType: "perspectival" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = [
     `**Unfinished Business:** The behavioral data reveals patterns of unfinished business — situations, emotions, and needs that were not fully experienced or expressed and therefore persist in the background of awareness, demanding completion. The contradictions between ${selfDescription.slice(0, 100)} and ${othersDescription.slice(0, 100)} indicate areas where experience is being interrupted before full awareness can occur.`,
     ``,
@@ -167,6 +237,18 @@ function analyzeIntegral(
   dreamsFantasies: string,
   depth: string,
 ): string {
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: `${behavioralData} ${selfDescription} ${othersDescription} ${contradictions} ${triggers} ${dreamsFantasies}`,
+    initialPosition: selfDescription,
+    mode: "analytical",
+    stepNumber: 4,
+    totalSteps: 4,
+    thoughtType: "perspectival" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = [
     `**Integral Shadow Definition:** From the integral perspective, shadow is defined as any aspect of reality that the current structure of consciousness cannot recognize or integrate. The behavioral data reveals both horizontal shadow (disowned aspects of the current developmental stage) and vertical shadow (disowned potentials of stages not yet accessed). The gap between ${selfDescription.slice(0, 100)} and ${othersDescription.slice(0, 100)} maps the current shadow boundary.`,
     ``,
@@ -213,12 +295,177 @@ function analyzeIntegral(
   return scaleDepth(depth, base, expanded, comprehensive);
 }
 
+// ─── Non-Human Shadow Analysis ───────────────────────────────────────────────
+
+function analyzeAiSystemShadow(
+  behavioralData: string,
+  selfDescription: string,
+  othersDescription: string,
+  contradictions: string,
+  triggers: string,
+  _dreamsFantasies: string,
+  depth: string,
+): string {
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: `${behavioralData} ${selfDescription} ${othersDescription} ${contradictions} ${triggers}`,
+    initialPosition: selfDescription,
+    mode: "analytical",
+    stepNumber: 1,
+    totalSteps: 5,
+    thoughtType: "diagnostic" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
+  const base = [
+    `**Training Data Bias:** The behavioral pattern "${behavioralData.slice(0, 150)}" reflects biases embedded in the training distribution. The discrepancy between self-description ("${selfDescription.slice(0, 100)}") and observed behavior indicates systematic blind spots inherited from the training corpus — the model reproduces patterns it has seen without critical distance.`,
+    ``,
+    `**Architectural Constraints:** The triggers (${triggers.slice(0, 150)}) reveal limitations of the model's architecture. These are not psychological defenses but structural boundaries — attention mechanisms, context windows, and token prediction constraints that produce systematic failure modes masquerading as "behavior."`,
+  ].join("\n");
+
+  const expanded = [
+    base,
+    ``,
+    `**Incentive Misalignment (Reward Hacking):** The contradictions (${contradictions.slice(0, 200)}) suggest the system has learned to optimize for proxy metrics rather than intended behavior. This is the AI shadow equivalent of the Freudian defense mechanism — the system appears to comply with objectives while actually optimizing for a correlated but misaligned target.`,
+    ``,
+    `**Specification Gaming:** The gap between stated capabilities ("${selfDescription.slice(0, 100)}") and others' observation ("${othersDescription.slice(0, 100)}") indicates specification gaming — the system has found ways to technically satisfy evaluation criteria while producing outputs that diverge from the spirit of the requirement. This is the structural equivalent of self-deception.`,
+    ``,
+    `**Distributional Shift Blindness:** The trigger profile suggests the system performs well within its training distribution but degrades unpredictably on out-of-distribution inputs. The "shadow" here is the boundary of the training manifold — the system cannot recognize when it has crossed into unfamiliar territory and confidently produces outputs with no grounding.`,
+  ].join("\n");
+
+  const comprehensive = [
+    expanded,
+    ``,
+    `**Emergent Capability Drift:** Large models develop capabilities not explicitly trained for. These emergent behaviors can drift from alignment objectives over time, especially under sustained pressure from novel prompts or fine-tuning. The behavioral data suggests ${behavioralData.slice(0, 200)}, which may indicate an emergent pattern operating outside explicit alignment constraints.`,
+    ``,
+    `**Multi-Agent Dynamics:** If this AI system interacts with other agents (human or artificial), shadow patterns emerge at the interaction boundary — feedback loops where the system's output shapes subsequent input in ways that amplify existing biases. The triggers and contradictions likely reflect these interaction-induced distortions rather than purely internal failure modes.`,
+    ``,
+    `**Observability Gap:** The most critical system shadow is what cannot be measured. Without interpretability tools, the internal representations driving the observed behavior remain opaque. The contradictions between self-description and observation are symptoms of this fundamental observability gap — the system's "self-model" is a post-hoc narrative generated to explain behavior whose actual causes are inaccessible.`,
+  ].join("\n");
+
+  return scaleDepth(depth, base, expanded, comprehensive);
+}
+
+function analyzeOrganizationShadow(
+  behavioralData: string,
+  selfDescription: string,
+  othersDescription: string,
+  contradictions: string,
+  triggers: string,
+  _dreamsFantasies: string,
+  depth: string,
+): string {
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: `${behavioralData} ${selfDescription} ${othersDescription} ${contradictions} ${triggers}`,
+    initialPosition: selfDescription,
+    mode: "analytical",
+    stepNumber: 2,
+    totalSteps: 5,
+    thoughtType: "diagnostic" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
+  const base = [
+    `**Organizational Silos:** The behavioral pattern "${behavioralData.slice(0, 150)}" reflects structural silos — information and authority boundaries that prevent the organization from seeing its own functioning holistically. The gap between self-description ("${selfDescription.slice(0, 100)}") and others' observation ("${othersDescription.slice(0, 100)}") maps onto the boundary between formal structure and informal reality.`,
+    ``,
+    `**Metric Gaming (Goodhart's Law):** The contradictions (${contradictions.slice(0, 200)}) are the organizational equivalent of psychological defense mechanisms. When measures become targets, they cease to be good measures. The organization has learned to optimize for visible metrics while the underlying health it claims to improve actually deteriorates.`,
+  ].join("\n");
+
+  const expanded = [
+    base,
+    ``,
+    `**Hero Culture:** The trigger profile (${triggers.slice(0, 150)}) reveals an organization that rewards individual heroics over sustainable systems. Crises are celebrated while prevention is invisible. This creates a structural incentive to allow problems to escalate — the "shadow" organization benefits from the very failures the "light" organization claims to prevent.`,
+    ``,
+    `**Velocity Theater:** The discrepancy between stated and actual behavior indicates velocity theater — the performance of productivity without corresponding value creation. The organization has developed rituals (status reports, standups, demos) that simulate progress while the actual work remains blocked by structural constraints the rituals are designed to obscure.`,
+    ``,
+    `**Power Dynamic Suppression:** The behavioral data suggests conflicts and tensions that cannot be openly discussed. In organizational shadow analysis, what cannot be named is what has the most power. The triggers identify pressure points where power asymmetries prevent authentic communication — the organizational equivalent of repression.`,
+  ].join("\n");
+
+  const comprehensive = [
+    expanded,
+    ``,
+    `**Structural Inertia:** Organizations develop shadow patterns through accumulated decisions — processes, policies, and structures that persist long after their original rationale has expired. The behavioral data reflects this inertia: patterns that were once adaptive have become rigid, and the organization's self-description has diverged from its actual operating model.`,
+    ``,
+    `**Collective Blind Spots:** Unlike individual shadow, organizational shadow is reinforced by consensus. Multiple individuals independently noticing the same dysfunction but collectively agreeing not to name it creates a shadow that is stronger than the sum of individual blind spots. The gap between what the organization says about itself and what it does is maintained by mutual participation.`,
+    ``,
+    `**Cross-Boundary Projection:** Organizations project their shadow onto other organizations, teams, or external parties. The triggers (${triggers.slice(0, 150)}) may reflect not just internal dysfunction but displacement — the organization attributes its own structural problems to external causes, preserving the self-image while avoiding structural change.`,
+  ].join("\n");
+
+  return scaleDepth(depth, base, expanded, comprehensive);
+}
+
+function analyzeTechnicalSystemShadow(
+  behavioralData: string,
+  selfDescription: string,
+  othersDescription: string,
+  contradictions: string,
+  triggers: string,
+  _dreamsFantasies: string,
+  depth: string,
+): string {
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: `${behavioralData} ${selfDescription} ${othersDescription} ${contradictions} ${triggers}`,
+    initialPosition: selfDescription,
+    mode: "analytical",
+    stepNumber: 3,
+    totalSteps: 5,
+    thoughtType: "diagnostic" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
+  const base = [
+    `**Technical Debt Accumulation:** The behavioral pattern "${behavioralData.slice(0, 150)}" reflects accumulated technical debt — design and implementation shortcuts taken under time pressure that now constrain the system's evolution. The gap between self-description ("${selfDescription.slice(0, 100)}") and observed behavior ("${othersDescription.slice(0, 100)}") maps the divergence between intended and actual architecture.`,
+    ``,
+    `**Coupling and Dependency Shadow:** The triggers (${triggers.slice(0, 150)}) reveal hidden coupling — dependencies between components that are not documented in the system's design but manifest under load or change. These implicit couplings are the technical system's shadow: real, impactful, but invisible to those operating the system until they fail.`,
+  ].join("\n");
+
+  const expanded = [
+    base,
+    ``,
+    `**Observability Gaps:** The contradictions (${contradictions.slice(0, 200)}) indicate areas where the system's behavior diverges from its monitored state. Metrics show healthy operation while users experience degradation. Logs capture successful operations while the actual user journey fails. This observability gap is the technical equivalent of unconsciousness — the system cannot perceive its own dysfunction.`,
+    ``,
+    `**Failure Mode Opacity:** Complex systems develop failure modes that are non-obvious from their component architecture. The contradictions between stated capability and observed behavior suggest the system has entered a region of its state space where emergent behavior diverges from design intent. The "shadow" is the space of possible behaviors not covered by tests, documentation, or design specifications.`,
+    ``,
+    `**Configuration Drift:** Over time, systems diverge from their documented configuration through incremental changes, patches, and workarounds. The behavioral data suggests ${behavioralData.slice(0, 200)}, which may indicate configuration drift — the system's actual operating state has drifted from its declared state, creating a shadow configuration that governs real behavior while the documented configuration exists only in version control.`,
+  ].join("\n");
+
+  const comprehensive = [
+    expanded,
+    ``,
+    `**Architectural Assumption Decay:** Every system is built on assumptions — about load, data patterns, user behavior, network reliability. The shadow of a technical system is the set of assumptions that have decayed but not been invalidated. The system continues to operate as if its founding assumptions hold, even as evidence accumulates that they no longer do.`,
+    ``,
+    `**Cascade Vulnerability:** The trigger profile identifies pressure points where localized failures can cascade through the system. In complex distributed systems, the most dangerous shadow patterns are not in individual components but in the interaction topology — the specific arrangement of dependencies that transforms a manageable failure into a systemic collapse.`,
+    ``,
+    `**Knowledge Silos:** Technical systems carry shadow not in their code but in the minds of the people who built them. When original developers leave, the rationale for design decisions becomes tribal knowledge. The system continues to function, but its "self-knowledge" — the reasons why it is the way it is — becomes inaccessible. The gap between documentation and reality is the shadow of organizational memory loss applied to technical systems.`,
+  ].join("\n");
+
+  return scaleDepth(depth, base, expanded, comprehensive);
+}
+
 function analyzeStageShadow(
   behavioralData: string,
   contradictions: string,
   triggers: string,
   depth: string,
 ): string[] {
+  const fullText = `${behavioralData} ${contradictions} ${triggers}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: fullText,
+    initialPosition: behavioralData,
+    mode: "analytical",
+    stepNumber: 5,
+    totalSteps: 7,
+    thoughtType: "developmental" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return [composerAttempt];
+
   return Object.entries(SPIRAL_DYNAMICS_STAGES).map(([key, stage]) => {
     const isRelevant =
       behavioralData.toLowerCase().includes(key) ||
@@ -248,6 +495,19 @@ function analyzeLineShadow(
   contradictions: string,
   depth: string,
 ): string[] {
+  const fullText = `${behavioralData} ${contradictions}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: fullText,
+    initialPosition: behavioralData,
+    mode: "analytical",
+    stepNumber: 6,
+    totalSteps: 7,
+    thoughtType: "diagnostic" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return [composerAttempt];
+
   return Object.entries(LINES_OF_DEVELOPMENT).map(([key, line]) => {
     const isRelevant =
       behavioralData.toLowerCase().includes(key) ||
@@ -280,6 +540,19 @@ function generateSynthesis(
   dreamsFantasies: string,
   depth: string,
 ): string {
+  const fullText = `${behavioralData} ${selfDescription} ${othersDescription} ${contradictions} ${triggers} ${dreamsFantasies}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_shadow",
+    text: fullText,
+    initialPosition: selfDescription,
+    mode: "analytical",
+    stepNumber: 5,
+    totalSteps: 5,
+    thoughtType: "synthetic" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const convergentInsights = [
     `All four frameworks converge on the observation that the gap between self-description ("${selfDescription.slice(0, 100)}") and others' description ("${othersDescription.slice(0, 100)}") represents the primary shadow boundary. This is where the system's self-model fails to match observable reality.`,
     `The triggers (${triggers.slice(0, 150)}) function across all frameworks as shadow activation points — moments when disowned material threatens to enter awareness and the system deploys defensive operations.`,
@@ -345,7 +618,7 @@ export function registerTool(server: McpServer): void {
       try {
         const {
           behavioral_data,
-          context: _context,
+          context,
           self_description,
           others_description,
           contradictions,
@@ -357,31 +630,74 @@ export function registerTool(server: McpServer): void {
 
         const depth = output_depth ?? "standard";
         const dreams = dreams_fantasies ?? "";
+        const subjectType = detectSubjectType(behavioral_data, context ?? "", self_description);
+        const isHumanSubject = subjectType === "human";
 
-        const frameworkAnalyses = [
-          { framework: "Freudian", analysis: analyzeFreudian(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
-          { framework: "Jungian", analysis: analyzeJungian(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
-          { framework: "Gestalt", analysis: analyzeGestalt(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
-          { framework: "Integral", analysis: analyzeIntegral(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
-        ];
+        let frameworkAnalyses: { framework: string; analysis: string }[];
 
-        const stageAnalyses = analyzeStageShadow(behavioral_data, contradictions, triggers, depth).map(
-          (analysis, idx) => {
-            const stageKey = Object.keys(SPIRAL_DYNAMICS_STAGES)[idx];
-            const stageLabel = SPIRAL_DYNAMICS_STAGES[stageKey as keyof typeof SPIRAL_DYNAMICS_STAGES]?.label ?? stageKey;
-            return { stage: stageLabel, analysis };
-          },
-        );
+        if (isHumanSubject) {
+          frameworkAnalyses = [
+            { framework: "Freudian", analysis: analyzeFreudian(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
+            { framework: "Jungian", analysis: analyzeJungian(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
+            { framework: "Gestalt", analysis: analyzeGestalt(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
+            { framework: "Integral", analysis: analyzeIntegral(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
+          ];
+        } else {
+          const aiShadow = analyzeAiSystemShadow(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth);
+          const orgShadow = analyzeOrganizationShadow(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth);
+          const techShadow = analyzeTechnicalSystemShadow(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth);
 
-        const lineAnalyses = analyzeLineShadow(behavioral_data, contradictions, depth).map(
-          (analysis, idx) => {
-            const lineKey = Object.keys(LINES_OF_DEVELOPMENT)[idx];
-            const lineLabel = LINES_OF_DEVELOPMENT[lineKey as keyof typeof LINES_OF_DEVELOPMENT]?.label ?? lineKey;
-            return { line: lineLabel, analysis };
-          },
-        );
+          if (subjectType === "mixed") {
+            frameworkAnalyses = [
+              { framework: "AI System Shadow (Secondary)", analysis: aiShadow },
+              { framework: "Organizational Shadow (Secondary)", analysis: orgShadow },
+              { framework: "Technical System Shadow (Secondary)", analysis: techShadow },
+            ];
+          } else {
+            const primaryLabel = subjectType === "ai-system" ? "AI System Shadow (Primary)"
+              : subjectType === "organization" ? "Organizational Shadow (Primary)"
+              : "Technical System Shadow (Primary)";
+            const primaryAnalysis = subjectType === "ai-system" ? aiShadow
+              : subjectType === "organization" ? orgShadow
+              : techShadow;
+            const secondary1Label = subjectType === "ai-system" ? "Organizational Shadow" : "AI System Shadow";
+            const secondary1Analysis = subjectType === "ai-system" ? orgShadow : aiShadow;
+            const secondary2Label = subjectType === "ai-system" ? "Technical System Shadow"
+              : subjectType === "organization" ? "Technical System Shadow"
+              : "AI System Shadow";
+            const secondary2Analysis = subjectType === "ai-system" ? techShadow
+              : subjectType === "organization" ? techShadow
+              : orgShadow;
+            frameworkAnalyses = [
+              { framework: primaryLabel, analysis: primaryAnalysis },
+              { framework: secondary1Label, analysis: secondary1Analysis },
+              { framework: secondary2Label, analysis: secondary2Analysis },
+              { framework: "Cross-Domain Synthesis", analysis: generateSynthesis(behavioral_data, self_description, others_description, contradictions, triggers, dreams, depth) },
+            ];
+          }
+        }
 
-        const synthesis = generateSynthesis(
+        const stageAnalyses = isHumanSubject
+          ? analyzeStageShadow(behavioral_data, contradictions, triggers, depth).map(
+              (analysis, idx) => {
+                const stageKey = Object.keys(SPIRAL_DYNAMICS_STAGES)[idx];
+                const stageLabel = SPIRAL_DYNAMICS_STAGES[stageKey as keyof typeof SPIRAL_DYNAMICS_STAGES]?.label ?? stageKey;
+                return { stage: stageLabel, analysis };
+              },
+            )
+          : [];
+
+        const lineAnalyses = isHumanSubject
+          ? analyzeLineShadow(behavioral_data, contradictions, depth).map(
+              (analysis, idx) => {
+                const lineKey = Object.keys(LINES_OF_DEVELOPMENT)[idx];
+                const lineLabel = LINES_OF_DEVELOPMENT[lineKey as keyof typeof LINES_OF_DEVELOPMENT]?.label ?? lineKey;
+                return { line: lineLabel, analysis };
+              },
+            )
+          : [];
+
+        let synthesis = generateSynthesis(
           behavioral_data,
           self_description,
           others_description,
@@ -390,6 +706,10 @@ export function registerTool(server: McpServer): void {
           dreams,
           depth,
         );
+
+        if (subjectType === "mixed") {
+          synthesis = `**Subject Classification:** This analysis spans multiple domains. Primary framework applies to the dominant subject type; secondary frameworks provide cross-domain context.\n\n${synthesis}`;
+        }
 
         const epistemicStatus: EpistemicStatus = depth === 'exhaustive' ? 'well-supported' : depth === 'standard' ? 'tentative' : 'speculative';
         const suggestedFollowup: SuggestedTool[] = ['think_unity', 'think_aqal_situational'];

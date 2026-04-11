@@ -13,9 +13,11 @@ import { registerTool as registerCausal } from "./tools/causal.js";
 import { registerTool as registerMetacognitive } from "./tools/metacognitive.js";
 import { registerTool as registerFirstPrinciples } from "./tools/first-principles.js";
 import { registerTool as registerScenario } from "./tools/scenario.js";
+import { registerTool as registerNavigator } from "./tools/navigator.js";
+import { initializePersistence } from "./utils/state-manager.js";
 
 const INSTRUCTIONS =
-  "This server provides 12 thinking modality tools that structure AI agent reasoning. " +
+  "This server provides 13 thinking modality tools that structure AI agent reasoning. " +
   "Each tool forces a different reasoning topology. " +
   "Tools compose — use outputs from one as inputs to another. " +
   "Core tools: think_sequential (step-by-step reasoning), think_polarity (dialectical tension mapping), " +
@@ -28,15 +30,19 @@ const INSTRUCTIONS =
   "think_scenario (2x2 scenario matrix + pre-mortem + futures wheel), " +
   "think_metacognitive (ladder of inference + cognitive bias audit), " +
   "think_first_principles (Socratic decomposition + reconstruction from bedrock facts). " +
+  "Orchestrator: think_navigator (DAG-based reasoning planning with dependency tracking and parallel execution). " +
   "All tools support: output_depth (essential|standard|exhaustive), output_mode (executive|analytical|exploratory). " +
   "Recommended workflows: " +
   "(1) cynefin first to determine domain, then route to appropriate tools. " +
   "(2) sequential → polarity → aqal → shadow → unity for deep analysis. " +
   "(3) scenario → causal → metacognitive for strategic foresight. " +
   "(4) first_principles → sequential → causal for breakthrough innovation. " +
-  "(5) metacognitive after any tool to catch reasoning errors.";
+  "(5) metacognitive after any tool to catch reasoning errors. " +
+  "(6) navigator to plan and orchestrate multi-step reasoning chains with progress tracking.";
 
 async function main(): Promise<void> {
+  initializePersistence();
+
   const server = new McpServer(
     {
       name: "thinking-modes-mcp-server",
@@ -59,6 +65,7 @@ async function main(): Promise<void> {
   registerMetacognitive(server);
   registerFirstPrinciples(server);
   registerScenario(server);
+  registerNavigator(server);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

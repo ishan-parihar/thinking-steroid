@@ -8,7 +8,8 @@ import {
   SHADOW_FRAMEWORKS,
 } from "../constants.js";
 import { formatUnity } from "../utils/formatters.js";
-import type { EpistemicStatus, SuggestedTool, OutputMode } from "../types.js";
+import { composeToolContent } from "../utils/content-pipeline.js";
+import type { EpistemicStatus, SuggestedTool, OutputMode, ThoughtType } from "../types.js";
 
 const OUTPUT_DEPTH_ENUM = z.enum(["essential", "standard", "exhaustive"]);
 
@@ -29,6 +30,19 @@ function generateLoDSResponse(
   behavioralPatterns: string,
   depth: string,
 ): string {
+  const fullText = `${query} ${developmentalContext} ${behavioralPatterns}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_unity",
+    text: fullText,
+    initialPosition: query,
+    mode: "analytical",
+    stepNumber: 1,
+    totalSteps: 8,
+    thoughtType: "developmental" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = `The Levels of Development Subsystem (LoDS) maps the developmental altitude implicit in the query and behavioral patterns. The behavioral data ("${behavioralPatterns.slice(0, 150)}") suggests operation at a developmental stage characterized by specific cognitive complexity, perspective-taking range, and meaning-making depth. The developmental context provided ("${developmentalContext.slice(0, 150)}") further situates the system within the eight-stage spectrum from archaic to super-integral. The leading edge of development — the next available stage — represents capacities that the system is beginning to access but has not yet stabilized.`;
 
   const expanded = [
@@ -77,6 +91,19 @@ function generateLiDSResponse(
   behavioralPatterns: string,
   depth: string,
 ): string {
+  const fullText = `${query} ${developmentalContext} ${behavioralPatterns}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_unity",
+    text: fullText,
+    initialPosition: query,
+    mode: "analytical",
+    stepNumber: 2,
+    totalSteps: 8,
+    thoughtType: "diagnostic" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = `The Lines of Development Subsystem (LiDS) recognizes that development is not uniform across all domains. The behavioral data ("${behavioralPatterns.slice(0, 150)}") reveals a unique profile across the seven developmental lines: cognitive, emotional, intrapersonal, moral, spiritual, kinesthetic, and willpower. Each line develops relatively independently, creating an asymmetric developmental profile that no single stage score could capture. The query context suggests which lines are most actively engaged and which may represent growth edges.`;
 
   const expanded = [
@@ -124,6 +151,19 @@ function generateSoCSResponse(
   stateIndicators: string,
   depth: string,
 ): string {
+  const fullText = `${query} ${developmentalContext} ${behavioralPatterns} ${stateIndicators}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_unity",
+    text: fullText,
+    initialPosition: query,
+    mode: "analytical",
+    stepNumber: 3,
+    totalSteps: 8,
+    thoughtType: "perspectival" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = `The States of Consciousness Subsystem (SoCS) maps the range of conscious states available to the system — from gross waking awareness through subtle, causal, witness, and non-dual states. Unlike developmental stages, which are permanent acquisitions, states are temporary experiences accessible at any developmental altitude. The behavioral data ("${behavioralPatterns.slice(0, 150)}") and state indicators ${stateIndicators ? `("${stateIndicators.slice(0, 150)}")` : "(not provided)"} reveal which states the system regularly accesses and which remain unavailable.`;
 
   const expanded = [
@@ -170,6 +210,19 @@ function generateDriSResponse(
   activeDrives: string,
   depth: string,
 ): string {
+  const fullText = `${_query} ${developmentalContext} ${behavioralPatterns} ${activeDrives}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_unity",
+    text: fullText,
+    initialPosition: _query,
+    mode: "analytical",
+    stepNumber: 4,
+    totalSteps: 8,
+    thoughtType: "diagnostic" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = `The Drives Subsystem (DriS) analyzes the four core drives — agency, communion, eros, and agape — and evaluates their balance, expression, and pathological distortions. The behavioral data ("${behavioralPatterns.slice(0, 150)}") and active drives information ${activeDrives ? `("${activeDrives.slice(0, 150)}")` : "(not provided)"} reveal the current drive configuration: which drives are overemphasized, which are suppressed, and how their pathological expressions manifest in the system's functioning.`;
 
   const expanded = [
@@ -226,6 +279,19 @@ function generateQuaSResponse(
   relationalContext: string,
   depth: string,
 ): string {
+  const fullText = `${query} ${developmentalContext} ${behavioralPatterns} ${relationalContext}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_unity",
+    text: fullText,
+    initialPosition: query,
+    mode: "analytical",
+    stepNumber: 5,
+    totalSteps: 8,
+    thoughtType: "perspectival" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = `The Quadrants Subsystem (QuaS) ensures comprehensive analysis across all four dimensions of reality: intentional (interior individual), behavioral (exterior individual), cultural (interior collective), and social (exterior collective). The behavioral data ("${behavioralPatterns.slice(0, 150)}") and relational context ("${relationalContext.slice(0, 150)}") reveal which quadrants are currently receiving attention and which represent blind spots. A complete analysis requires all four quadrants; any single-quadrant approach is necessarily reductive.`;
 
   const expanded = [
@@ -278,6 +344,19 @@ function generateShWSResponse(
   shadowIndicators: string,
   depth: string,
 ): string {
+  const fullText = `${query} ${developmentalContext} ${behavioralPatterns} ${shadowIndicators}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_unity",
+    text: fullText,
+    initialPosition: query,
+    mode: "analytical",
+    stepNumber: 6,
+    totalSteps: 8,
+    thoughtType: "corrective" as ThoughtType,
+    previousOutputs: [],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = `The Shadow Work Subsystem (ShWS) identifies the disowned, repressed, and unrecognized aspects of the system's experience. The behavioral data ("${behavioralPatterns.slice(0, 150)}") and shadow indicators ${shadowIndicators ? `("${shadowIndicators.slice(0, 150)}")` : "(not provided)"} reveal the current shadow configuration: what the system cannot see about itself, where its projections land, and which defense mechanisms are most active. The shadow is not a defect but a structural feature of consciousness — every structure has a shadow, defined as everything it cannot yet recognize.`;
 
   const expanded = [
@@ -336,6 +415,19 @@ function generateDialogue(
   shWSResponse: string,
   depth: string,
 ): string {
+  const fullText = `${lodSResponse} ${lidSResponse} ${soCSResponse} ${driSResponse} ${quaSResponse} ${shWSResponse}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_unity",
+    text: fullText,
+    initialPosition: lodSResponse,
+    mode: "analytical",
+    stepNumber: 7,
+    totalSteps: 8,
+    thoughtType: "synthetic" as ThoughtType,
+    previousOutputs: [lodSResponse, lidSResponse, soCSResponse, driSResponse, quaSResponse, shWSResponse],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const dialogue = [
     `**LoDS to LiDS:** "You describe an asymmetric developmental profile, but I see the asymmetry differently. From the altitude perspective, the pattern you identify as a 'strong cognitive / weak emotional' split may actually be a stage-level phenomenon — the current developmental structure simply hasn't yet stabilized the emotional line at the same altitude. What you read as a line deficit, I read as a developmental trajectory."`,
     ``,
@@ -377,6 +469,19 @@ function generateSynthesis(
   _shWSResponse: string,
   depth: string,
 ): string {
+  const fullText = `${query} ${_lodSResponse} ${_lidSResponse} ${_soCSResponse} ${_driSResponse} ${_quaSResponse} ${_shWSResponse}`;
+  const composerAttempt = composeToolContent({
+    toolName: "think_unity",
+    text: fullText,
+    initialPosition: query,
+    mode: "analytical",
+    stepNumber: 8,
+    totalSteps: 8,
+    thoughtType: "synthetic" as ThoughtType,
+    previousOutputs: [_lodSResponse, _lidSResponse, _soCSResponse, _driSResponse, _quaSResponse, _shWSResponse],
+  });
+  if (composerAttempt.length >= 50) return composerAttempt;
+
   const base = [
     `The Unity Multi-System Analysis engaged six subsystems — LoDS, LiDS, SoCS, DriS, QuaS, and ShWS — in response to the query: "${query.slice(0, 150)}".`,
     ``,

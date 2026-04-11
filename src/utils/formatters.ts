@@ -4,7 +4,28 @@ import {
   INTEGRATION_SPECTRUM_ROWS,
   INTEGRATION_SPECTRUM_LEVELS,
   FIRST_PRINCIPLES_CATEGORIES,
+  CHARACTER_LIMIT,
 } from "../constants.js";
+
+// ─── Output Size Enforcement ────────────────────────────────────────────────
+
+function enforceCharacterLimit(text: string): string {
+  if (text.length <= CHARACTER_LIMIT) return text;
+  return text.substring(0, CHARACTER_LIMIT - 200) + "\n\n---\n*Output truncated due to size limit. Request 'exhaustive' depth for more detail.*";
+}
+
+// Executive mode truncates to < 5,000 chars with progressive disclosure markers.
+const EXECUTIVE_SOFT_LIMIT = 5000;
+
+function progressiveDisclosureMarker(sectionId: string, detailSummary: string): string {
+  return `\n\n[DETAIL: ${sectionId}] ${detailSummary}`;
+}
+
+function toTwoSentences(text: string): string {
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+  if (sentences.length <= 2) return text;
+  return sentences.slice(0, 2).join('. ') + '.';
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -14,13 +35,13 @@ function confidenceBar(value: number): string {
   const empty = 5 - filled;
   const bar = "▓".repeat(filled) + "░".repeat(empty);
   const label =
-    clamped <= 0.2
+    clamped <= 0.15
       ? "Very Low"
-      : clamped <= 0.4
+      : clamped <= 0.35
         ? "Low"
-        : clamped <= 0.6
+        : clamped <= 0.55
           ? "Medium"
-          : clamped <= 0.8
+          : clamped <= 0.75
             ? "High"
             : "Very High";
   return `${bar} ${label}`;
@@ -47,6 +68,10 @@ function escapeMd(text: string): string {
   return text.replace(/\|/g, "\\|").replace(/\n/g, " ").substring(0, 200);
 }
 
+function escapeMdLong(text: string, maxLen: number = 500): string {
+  return text.replace(/\|/g, "\\|").replace(/\n/g, " ").substring(0, maxLen);
+}
+
 function bulletList(items: string[]): string {
   return items.map((item) => `- ${item}`).join("\n");
 }
@@ -67,6 +92,7 @@ export function formatSequentialThinking(
     claim: string;
     reasoning: string;
     confidence: number;
+    confidence_justification?: string;
     reasoning_sub_mode?: ReasoningSubMode;
     assumptions: string[];
     counter_argument: string;
@@ -88,6 +114,9 @@ export function formatSequentialThinking(
     sections.push(`### Step ${idx + 1}:${subModeLabel} ${step.claim}\n`);
     sections.push(`**Reasoning:** ${step.reasoning}\n`);
     sections.push(`**Confidence:** ${confidenceBar(step.confidence)}\n`);
+    if (step.confidence_justification) {
+      sections.push(`**Confidence Justification:** ${step.confidence_justification}\n`);
+    }
     sections.push(`**Assumptions:**\n${checklist(step.assumptions)}\n`);
     sections.push(`**Counter-Argument:** ${step.counter_argument}\n`);
     sections.push(`**Next Investigation:** ${step.next_investigation}\n`);
@@ -103,13 +132,28 @@ export function formatSequentialThinking(
   );
 
   if (output_mode === 'executive') {
-    const truncatedSections = sections.map(s => {
-      const sentences = s.split(/(?<=[.!?])\s+/);
-      if (sentences.length > 2 && s.startsWith('**Reasoning:**')) {
-        return sentences.slice(0, 2).join('. ') + '.';
+    const truncatedSections: string[] = [];
+    let stepIdx = 0;
+    for (const s of sections) {
+      if (s.startsWith('**Reasoning:**')) {
+        const sentences = s.split(/(?<=[.!?])\s+/).filter(x => x.trim().length > 0);
+        if (sentences.length > 2) {
+          truncatedSections.push(sentences.slice(0, 2).join('. ') + '.' + progressiveDisclosureMarker(`step-${stepIdx + 1}`, 'Full reasoning, assumptions, and counter-arguments available.'));
+        } else {
+          truncatedSections.push(s);
+        }
+        stepIdx++;
+      } else if (s.startsWith('### Step')) {
+        const sentences = s.split(/(?<=[.!?])\s+/).filter(x => x.trim().length > 0);
+        truncatedSections.push(sentences.slice(0, 2).join('. ') + '.');
+      } else if (s.includes('## Meta-Reflection')) {
+        truncatedSections.push(toTwoSentences(s));
+      } else if (s.includes('**Confidence:**') || s.includes('**Assumptions:**') || s.includes('**Counter-Argument:**') || s.includes('**Next Investigation:**')) {
+        // Skip detailed per-step metadata in executive mode
+      } else {
+        truncatedSections.push(s);
       }
-      return s;
-    });
+    }
     sections.length = 0;
     sections.push(...truncatedSections);
   }
@@ -125,7 +169,7 @@ export function formatSequentialThinking(
     sections.push(`3. If the lowest-confidence step turned out to be correct and the highest-confidence step wrong, what would that imply?`);
   }
 
-  return sections.join("\n---\n\n");
+  return enforceCharacterLimit(sections.join("\n---\n\n"));
 }
 
 function getConfidencePattern(
@@ -205,11 +249,18 @@ export function formatPolarityMap(
   );
 
   if (output_mode === 'executive') {
+    const spectrumIdx = sections.findIndex(s => s.includes('Integration Spectrum'));
+    if (spectrumIdx >= 0) {
+      const truncatedSpectrumRows = spectrumRows.slice(0, 4);
+      sections[spectrumIdx] = mdTable(spectrumHeaders, truncatedSpectrumRows) +
+        progressiveDisclosureMarker('integration-spectrum-full', `${INTEGRATION_SPECTRUM_ROWS.length - 4} additional dimension(s) truncated.`);
+    }
     const assessmentIdx = sections.findIndex(s => s.includes('Current Position Assessment'));
     if (assessmentIdx >= 0) {
       const sentences = sections[assessmentIdx].split(/(?<=[.!?])\s+/);
       if (sentences.length > 2) {
-        sections[assessmentIdx] = sentences.slice(0, 2).join('. ') + '.';
+        sections[assessmentIdx] = sentences.slice(0, 2).join('. ') + '.' +
+          progressiveDisclosureMarker('current-position-full', 'Full assessment with all quadrants and temporal context available.');
       }
     }
   }
@@ -225,7 +276,7 @@ export function formatPolarityMap(
     sections.push(`3. What historical conditions created this polarity, and under what future conditions might it become obsolete?`);
   }
 
-  return sections.join("\n\n");
+  return enforceCharacterLimit(sections.join("\n\n"));
 }
 
 // ─── 3. AQAL Situational Analysis ───────────────────────────────────────────
@@ -327,7 +378,9 @@ export function formatAqalSituational(
   if (output_mode === 'executive') {
     const dynamicsIdx = sections.findIndex(s => s.includes('Cross-Quadrant Dynamics'));
     if (dynamicsIdx >= 0) {
-      sections.length = dynamicsIdx + 1;
+      sections.splice(dynamicsIdx, 1,
+        progressiveDisclosureMarker('cross-quadrant-dynamics', '6 cross-quadrant interaction analyses (Intentional→Behavioral, Intentional→Cultural, Intentional→Social, Behavioral→Cultural, Behavioral→Social, Cultural→Social) truncated.')
+      );
     }
   }
 
@@ -342,7 +395,7 @@ export function formatAqalSituational(
     sections.push(`3. What second-order effects of quadrant-specific interventions could create feedback loops that undermine the intended outcomes?`);
   }
 
-  return sections.join("\n\n");
+  return enforceCharacterLimit(sections.join("\n\n"));
 }
 
 // ─── 4. AQAL Projection ─────────────────────────────────────────────────────
@@ -415,10 +468,9 @@ export function formatAqalProjection(
   if (output_mode === 'executive') {
     const temporalIdx = sections.findIndex(s => s.includes('Temporal Dynamics Analysis'));
     if (temporalIdx >= 0) {
-      const sentences = sections[temporalIdx].split(/(?<=[.!?])\s+/);
-      if (sentences.length > 2) {
-        sections[temporalIdx] = sentences.slice(0, 2).join('. ') + '.';
-      }
+      sections.splice(temporalIdx, 1,
+        progressiveDisclosureMarker('temporal-dynamics', 'Full temporal analysis including fastest/slowest-changing quadrants, temporal implications, and feedback loop cascades available.')
+      );
     }
   }
 
@@ -433,7 +485,7 @@ export function formatAqalProjection(
     sections.push(`3. What signals should we monitor in the next 90 days that would indicate the projections are off-track?`);
   }
 
-  return sections.join("\n\n");
+  return enforceCharacterLimit(sections.join("\n\n"));
 }
 
 // ─── 5. Hierarchical Developmental ──────────────────────────────────────────
@@ -463,7 +515,8 @@ export function formatHierarchical(
     "Social / Inter-objective",
   ];
 
-  const rows = stages.map((s) => [
+  const truncatedStages = output_mode === 'executive' ? stages.slice(0, 3) : stages;
+  const rows = truncatedStages.map((s) => [
     s.stage,
     escapeMd(s.intentional),
     escapeMd(s.behavioral),
@@ -472,6 +525,9 @@ export function formatHierarchical(
   ]);
 
   sections.push(mdTable(headers, rows));
+  if (output_mode === 'executive' && stages.length > 3) {
+    sections.push(progressiveDisclosureMarker('developmental-stages-full', `${stages.length - 3} additional stage(s) truncated: ${stages.slice(3).map(s => s.stage).join(', ')}.`));
+  }
   sections.push("");
 
   sections.push("## Developmental Trajectory Assessment\n");
@@ -501,7 +557,8 @@ export function formatHierarchical(
     if (trajectoryIdx >= 0) {
       const sentences = sections[trajectoryIdx].split(/(?<=[.!?])\s+/);
       if (sentences.length > 2) {
-        sections[trajectoryIdx] = sentences.slice(0, 2).join('. ') + '.';
+        sections[trajectoryIdx] = sentences.slice(0, 2).join('. ') + '.' +
+          progressiveDisclosureMarker('developmental-trajectory', 'Full trajectory assessment with directionality, developmental tasks, and current position analysis available.');
       }
     }
   }
@@ -517,7 +574,7 @@ export function formatHierarchical(
     sections.push(`3. Which quadrant at the current stage represents the weakest link, and what would happen if it were strengthened independently?`);
   }
 
-  return sections.join("\n\n");
+  return enforceCharacterLimit(sections.join("\n\n"));
 }
 
 // ─── 6. Shadow Report ───────────────────────────────────────────────────────
@@ -563,18 +620,46 @@ export function formatShadowReport(
     "---\n\n*This analysis is purely descriptive and interpretive. No interventions or prescriptions are implied.*",
   );
 
-  sections.push("\n## Meta-Analysis\n");
-  sections.push(`- **Epistemic Status:** ${epistemic_status}`);
-  sections.push(`- **Suggested Follow-ups:** ${suggested_followup.length > 0 ? suggested_followup.join(', ') : 'None'}`);
+  if (output_mode === 'executive') {
+    const execSections: string[] = [];
+    execSections.push(sections[0]);
+    if (framework_analyses.length > 0) {
+      execSections.push(`### Key Finding\n\n${toTwoSentences(framework_analyses[0].analysis)}.`);
+    }
+    if (framework_analyses.length > 1) {
+      execSections.push(progressiveDisclosureMarker('multi-framework-analysis', `${framework_analyses.length - 1} additional framework analysis(es) available: ${framework_analyses.slice(1).map(f => f.framework).join(', ')}.`));
+    }
+    if (stage_analysis.length > 0) {
+      execSections.push(`### Developmental Shadow\n\n${toTwoSentences(stage_analysis[0].analysis)}.`);
+    }
+    if (stage_analysis.length > 1) {
+      execSections.push(progressiveDisclosureMarker('stage-shadow-analysis', `${stage_analysis.length - 1} additional stage analysis(es) available.`));
+    }
+    if (line_analysis.length > 0) {
+      execSections.push(progressiveDisclosureMarker('lines-of-development-shadow', `${line_analysis.length} line(s) of development shadow analysis available: ${line_analysis.map(l => l.line).join(', ')}.`));
+    }
+    if (synthesis) {
+      execSections.push(progressiveDisclosureMarker('shadow-synthesis', 'Full synthesis and dominant shadow constellations available.'));
+    }
+    execSections.push("\n## Meta-Analysis\n");
+    execSections.push(`- **Epistemic Status:** ${epistemic_status}`);
+    execSections.push(`- **Suggested Follow-ups:** ${suggested_followup.length > 0 ? suggested_followup.join(', ') : 'None'}`);
+    sections.length = 0;
+    sections.push(...execSections);
+  } else {
+    sections.push("\n## Meta-Analysis\n");
+    sections.push(`- **Epistemic Status:** ${epistemic_status}`);
+    sections.push(`- **Suggested Follow-ups:** ${suggested_followup.length > 0 ? suggested_followup.join(', ') : 'None'}`);
 
-  if (output_mode === 'exploratory') {
-    sections.push("\n## Open Questions\n");
-    sections.push(`1. What shadow material might be operating at a level too subtle for any of these frameworks to detect, and how could we design conditions to surface it?`);
-    sections.push(`2. Which framework's analysis is most likely to be wrong, and what evidence would falsify its central claim?`);
-    sections.push(`3. If the shadow constellation identified here is actually a strength in disguise, what context would transform it from liability to asset?`);
+    if (output_mode === 'exploratory') {
+      sections.push("\n## Open Questions\n");
+      sections.push(`1. What shadow material might be operating at a level too subtle for any of these frameworks to detect, and how could we design conditions to surface it?`);
+      sections.push(`2. Which framework's analysis is most likely to be wrong, and what evidence would falsify its central claim?`);
+      sections.push(`3. If the shadow constellation identified here is actually a strength in disguise, what context would transform it from liability to asset?`);
+    }
   }
 
-  return sections.join("\n\n");
+  return enforceCharacterLimit(sections.join("\n\n"));
 }
 
 // ─── 7. Unity Multi-System ──────────────────────────────────────────────────
@@ -623,27 +708,33 @@ export function formatUnity(
   );
 
   if (output_mode === 'executive') {
-    const closingIdx = sections.findIndex(s => s.includes('Closing Reflections'));
-    if (closingIdx >= 0) {
-      const sentences = sections[closingIdx].split(/(?<=[.!?])\s+/);
-      if (sentences.length > 2) {
-        sections[closingIdx] = sentences.slice(0, 2).join('. ') + '.';
-      }
+    const execSections: string[] = [];
+    execSections.push(sections[0]);
+    execSections.push(sections[1]);
+    if (subsystem_responses.length > 2) {
+      execSections.push(progressiveDisclosureMarker('subsystem-responses', `${subsystem_responses.length - 2} additional subsystem response(s) available: ${subsystem_responses.slice(2).map(s => s.label).join(', ')}.`));
+    }
+    execSections.push(progressiveDisclosureMarker('inter-system-dialogue', 'Full inter-system dialogue and integrated synthesis available.'));
+    execSections.push(progressiveDisclosureMarker('closing-reflections', 'Closing reflections with multi-system relationship analysis available.'));
+    execSections.push("\n## Meta-Analysis\n");
+    execSections.push(`- **Epistemic Status:** ${epistemic_status}`);
+    execSections.push(`- **Suggested Follow-ups:** ${suggested_followup.length > 0 ? suggested_followup.join(', ') : 'None'}`);
+    sections.length = 0;
+    sections.push(...execSections);
+  } else {
+    sections.push("\n## Meta-Analysis\n");
+    sections.push(`- **Epistemic Status:** ${epistemic_status}`);
+    sections.push(`- **Suggested Follow-ups:** ${suggested_followup.length > 0 ? suggested_followup.join(', ') : 'None'}`);
+
+    if (output_mode === 'exploratory') {
+      sections.push("\n## Open Questions\n");
+      sections.push(`1. What analytical lens is missing from this six-subsystem configuration, and what would it reveal that the current set cannot?`);
+      sections.push(`2. If one subsystem's analysis is fundamentally misaligned with reality, which one is most vulnerable and why?`);
+      sections.push(`3. How would this multi-system analysis look if conducted from a developmental stage higher than the one currently accessible to the analyst?`);
     }
   }
 
-  sections.push("\n## Meta-Analysis\n");
-  sections.push(`- **Epistemic Status:** ${epistemic_status}`);
-  sections.push(`- **Suggested Follow-ups:** ${suggested_followup.length > 0 ? suggested_followup.join(', ') : 'None'}`);
-
-  if (output_mode === 'exploratory') {
-    sections.push("\n## Open Questions\n");
-    sections.push(`1. What analytical lens is missing from this six-subsystem configuration, and what would it reveal that the current set cannot?`);
-    sections.push(`2. If one subsystem's analysis is fundamentally misaligned with reality, which one is most vulnerable and why?`);
-    sections.push(`3. How would this multi-system analysis look if conducted from a developmental stage higher than the one currently accessible to the analyst?`);
-  }
-
-  return sections.join("\n\n");
+  return enforceCharacterLimit(sections.join("\n\n"));
 }
 
 // ─── 8. First Principles Decomposition ──────────────────────────────────────
@@ -695,7 +786,7 @@ export function formatFirstPrinciples(
 
   sections.push("### Claim Classification\n");
   const claimRows = decomposition.claims.map((c) => [
-    escapeMd(c.claim),
+    escapeMdLong(c.claim),
     categoryShortLabel(c.category),
     `${(c.confidence * 100).toFixed(0)}%`,
     escapeMd(c.test),
@@ -706,7 +797,7 @@ export function formatFirstPrinciples(
   if (decomposition.socraticInterrogation.length > 0) {
     sections.push("### Socratic Interrogation\n");
     decomposition.socraticInterrogation.forEach((si, idx) => {
-      sections.push(`#### ${escapeMd(si.assumption)}\n`);
+      sections.push(`#### ${escapeMdLong(si.assumption)}\n`);
       sections.push(`- **Origin:** ${si.origin}`);
       sections.push(`- **Evidence:** ${si.evidence}`);
       sections.push(`- **Liberation:** ${si.liberation}\n`);
@@ -738,6 +829,9 @@ export function formatFirstPrinciples(
     execSections.push(sections[1]);
     execSections.push(sections[2]);
     execSections.push(mdTable(["Claim", "Category", "Confidence", "Test"], claimRows.slice(0, 4)));
+    if (decomposition.claims.length > 4) {
+      execSections.push(progressiveDisclosureMarker('claim-classification-full', `${decomposition.claims.length - 4} additional claim(s) classified.`));
+    }
     execSections.push("");
     if (decomposition.socraticInterrogation.length > 0) {
       const first = decomposition.socraticInterrogation[0];
@@ -745,14 +839,29 @@ export function formatFirstPrinciples(
       execSections.push(`**${escapeMd(first.assumption)}**`);
       execSections.push(`- **Liberation:** ${first.liberation}\n`);
     }
+    if (decomposition.socraticInterrogation.length > 1) {
+      execSections.push(progressiveDisclosureMarker('socratic-interrogation-full', `${decomposition.socraticInterrogation.length - 1} additional assumption(s) interrogated.`));
+    }
     execSections.push("### Constraint Map\n");
     execSections.push(`**Truly Impossible:** ${decomposition.constraintMap.trulyImpossible.length > 0 ? decomposition.constraintMap.trulyImpossible.slice(0, 2).join("; ") : "None"}`);
+    if (decomposition.constraintMap.trulyImpossible.length > 2) {
+      execSections.push(progressiveDisclosureMarker('constraint-impossible', `${decomposition.constraintMap.trulyImpossible.length - 2} additional impossibility constraint(s).`));
+    }
     execSections.push(`\n**Flexible:** ${decomposition.constraintMap.actuallyFlexible.length > 0 ? decomposition.constraintMap.actuallyFlexible.slice(0, 2).join("; ") : "None"}`);
+    if (decomposition.constraintMap.actuallyFlexible.length > 2) {
+      execSections.push(progressiveDisclosureMarker('constraint-flexible', `${decomposition.constraintMap.actuallyFlexible.length - 2} additional flexible constraint(s).`));
+    }
     execSections.push("");
     execSections.push("### Reconstruction Options\n");
     decomposition.reconstructionOptions.slice(0, 1).forEach((opt) => {
-      execSections.push(`**${opt.title}:** ${opt.description.split(". ").slice(0, 2).join(". ")}.`);
+      execSections.push(`**${opt.title}:** ${toTwoSentences(opt.description)}.`);
     });
+    if (decomposition.reconstructionOptions.length > 1) {
+      execSections.push(progressiveDisclosureMarker('reconstruction-options', `${decomposition.reconstructionOptions.length - 1} additional reconstruction option(s) available.`));
+    }
+    if (decomposition.reconstructionBlueprint && decomposition.reconstructionBlueprint.length > 0) {
+      execSections.push(progressiveDisclosureMarker('reconstruction-blueprint', `Full blueprint with ${decomposition.reconstructionBlueprint.length} step(s) available.`));
+    }
     execSections.push("\n## Meta-Analysis\n");
     execSections.push(`- **Epistemic Status:** ${decomposition.epistemic_status}`);
     execSections.push(`- **Suggested Follow-ups:** ${decomposition.suggested_followup.length > 0 ? decomposition.suggested_followup.join(", ") : "None"}`);
@@ -771,7 +880,7 @@ export function formatFirstPrinciples(
     sections.push(`3. If we removed ALL contextual constraints temporarily, what solution becomes obvious? Which of those constraints are actually necessary to reintroduce?`);
   }
 
-  return sections.join("\n\n");
+  return enforceCharacterLimit(sections.join("\n\n"));
 }
 
 // ─── 9. Scenario Planning ────────────────────────────────────────────────────
@@ -860,6 +969,33 @@ export function formatScenarioPlanning(
   sections.push("");
 
   if (output_mode === 'executive') {
+    const truncatedNarratives: string[] = [];
+    for (const s of scenarios) {
+      truncatedNarratives.push(`**${s.name}** (${s.probability}): ${s.first_order_consequences.slice(0, 2).join('; ')}.`);
+    }
+    const narrativeIdx = sections.findIndex(s => s.includes('### Scenario Narratives'));
+    if (narrativeIdx >= 0) {
+      sections.length = narrativeIdx + 1;
+      sections.push(truncatedNarratives.join('\n\n'));
+      sections.push(progressiveDisclosureMarker('scenario-narratives-full', 'Full scenario descriptions, driving forces, 2nd/3rd order consequences, and strategic implications per scenario available.'));
+    }
+    const preMortemIdx = sections.findIndex(s => s.includes('### Pre-Mortem Analysis'));
+    if (preMortemIdx >= 0) {
+      sections.splice(preMortemIdx, 1,
+        progressiveDisclosureMarker('pre-mortem-analysis', `${preMortem.length} failure mode(s) with early warning signals and mitigation strategies available.`)
+      );
+    }
+    const futuresIdx = sections.findIndex(s => s.includes('### Futures Wheel'));
+    if (futuresIdx >= 0) {
+      sections.splice(futuresIdx, 1,
+        progressiveDisclosureMarker('futures-wheel', `Full 3-ring futures wheel: ${futuresWheel.first_ring.length} first-order, ${Object.values(futuresWheel.second_ring).flat().length} second-order, ${Object.keys(futuresWheel.third_ring).length} third-order consequences.`)
+      );
+    }
+    const strategicIdx = sections.findIndex(s => s.includes('### Strategic Implications'));
+    if (strategicIdx >= 0) sections.splice(strategicIdx, 1,
+      progressiveDisclosureMarker('strategic-implications', 'Cross-scenario robust strategies and scenario-specific actions available.')
+    );
+  } else {
     const narrativeIdx = sections.findIndex(s => s.includes('### Scenario Narratives'));
     if (narrativeIdx >= 0) {
       const truncatedNarratives: string[] = [];
@@ -901,5 +1037,5 @@ export function formatScenarioPlanning(
     sections.push(`3. If all four scenarios are plausible, what single capability would be most valuable regardless of which future unfolds?`);
   }
 
-  return sections.join("\n\n");
+  return enforceCharacterLimit(sections.join("\n\n"));
 }

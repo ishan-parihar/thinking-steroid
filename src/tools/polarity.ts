@@ -7,6 +7,8 @@ import {
   SYSTEMS_ARCHETYPES,
 } from "../constants.js";
 import { formatPolarityMap } from "../utils/formatters.js";
+import { composeToolContent, getStructureForText } from "../utils/content-pipeline.js";
+import type { ThoughtType } from "../types.js";
 
 // ─── Tool Annotations ────────────────────────────────────────────────────────
 
@@ -47,13 +49,22 @@ const DEPTH_CONFIGS: Record<OutputDepth, DepthConfig> = {
   },
 };
 
+// ─── Composer Context ────────────────────────────────────────────────────────
+
+interface PolarityComposerContext {
+  fullText: string;
+  initialPosition: string;
+  outputMode: OutputMode;
+}
+
 // ─── Polarity Analysis Generator ─────────────────────────────────────────────
 
 /**
  * Generates the 9-row polarity map analysis for a given tension.
  */
 function generatePolarityAnalysis(
-  input: PolarityThinkingInput & { output_depth: OutputDepth }
+  input: PolarityThinkingInput & { output_depth: OutputDepth },
+  composerCtx?: PolarityComposerContext
 ): Record<string, { a: string; b: string }> {
   const {
     pole_a,
@@ -70,82 +81,59 @@ function generatePolarityAnalysis(
   // 1. Rewards of Focus
   analysis["Rewards of Focus"] = {
     a: generateRewardsOfFocus(
-      pole_a,
-      pole_b,
-      domain,
-      current_position,
-      "a",
-      config
+      pole_a, pole_b, domain, current_position, "a", config, composerCtx, 1, 9
     ),
     b: generateRewardsOfFocus(
-      pole_a,
-      pole_b,
-      domain,
-      current_position,
-      "b",
-      config
+      pole_a, pole_b, domain, current_position, "b", config, composerCtx, 2, 9
     ),
   };
 
   // 2. Overemphasis Feedback
   analysis["Overemphasis Feedback"] = {
-    a: generateOveremphasisFeedback(pole_a, domain, "a", config),
-    b: generateOveremphasisFeedback(pole_b, domain, "b", config),
+    a: generateOveremphasisFeedback(pole_a, domain, "a", config, composerCtx, 3, 9),
+    b: generateOveremphasisFeedback(pole_b, domain, "b", config, composerCtx, 4, 9),
   };
 
   // 3. Neglect Risks
   analysis["Neglect Risks"] = {
-    a: generateNeglectRisks(pole_a, pole_b, domain, "a", config),
-    b: generateNeglectRisks(pole_b, pole_a, domain, "b", config),
+    a: generateNeglectRisks(pole_a, pole_b, domain, "a", config, composerCtx, 5, 9),
+    b: generateNeglectRisks(pole_b, pole_a, domain, "b", config, composerCtx, 6, 9),
   };
 
   // 4. Circular Causal Loops
   analysis["Circular Causal Loops"] = {
-    a: generateCircularCausalLoop(pole_a, pole_b, domain, "a-fuels-b", config),
-    b: generateCircularCausalLoop(pole_b, pole_a, domain, "b-fuels-a", config),
+    a: generateCircularCausalLoop(pole_a, pole_b, domain, "a-fuels-b", config, composerCtx, 7, 9),
+    b: generateCircularCausalLoop(pole_b, pole_a, domain, "b-fuels-a", config, composerCtx, 8, 9),
   };
 
   // 5. Balkanization Risks
   analysis["Balkanization Risks"] = {
-    a: generateBalkanizationRisk(pole_a, pole_b, domain, "a", config),
-    b: generateBalkanizationRisk(pole_b, pole_a, domain, "b", config),
+    a: generateBalkanizationRisk(pole_a, pole_b, domain, "a", config, composerCtx, 9, 9),
+    b: generateBalkanizationRisk(pole_b, pole_a, domain, "b", config, composerCtx, 10, 9),
   };
 
   // 6. Extremity Feedback
   analysis["Extremity Feedback"] = {
-    a: generateExtremityFeedback(pole_a, domain, current_position, "a", config),
-    b: generateExtremityFeedback(
-      pole_b,
-      domain,
-      current_position,
-      "b",
-      config
-    ),
+    a: generateExtremityFeedback(pole_a, domain, current_position, "a", config, composerCtx, 11, 9),
+    b: generateExtremityFeedback(pole_b, domain, current_position, "b", config, composerCtx, 12, 9),
   };
 
   // 7. Transcendence Rewards
   analysis["Transcendence Rewards"] = {
-    a: generateTranscendenceReward(pole_a, pole_b, domain, desired_outcome, "a", config),
-    b: generateTranscendenceReward(pole_b, pole_a, domain, desired_outcome, "b", config),
+    a: generateTranscendenceReward(pole_a, pole_b, domain, desired_outcome, "a", config, composerCtx, 13, 9),
+    b: generateTranscendenceReward(pole_b, pole_a, domain, desired_outcome, "b", config, composerCtx, 14, 9),
   };
 
   // 8. Reflection Loops
   analysis["Reflection Loops"] = {
-    a: generateReflectionLoop(pole_a, domain, "a", config),
-    b: generateReflectionLoop(pole_b, domain, "b", config),
+    a: generateReflectionLoop(pole_a, domain, "a", config, composerCtx, 15, 9),
+    b: generateReflectionLoop(pole_b, domain, "b", config, composerCtx, 16, 9),
   };
 
   // 9. Meta-Reflection Process
   analysis["Meta-Reflection Process"] = {
-    a: generateMetaReflection(pole_a, pole_b, domain, current_position, "meta-perspective", config),
-    b: generateMetaReflection(
-      pole_a,
-      pole_b,
-      domain,
-      current_position,
-      "system-integration",
-      config
-    ),
+    a: generateMetaReflection(pole_a, pole_b, domain, current_position, "meta-perspective", config, composerCtx, 17, 9),
+    b: generateMetaReflection(pole_a, pole_b, domain, current_position, "system-integration", config, composerCtx, 18, 9),
   };
 
   return analysis;
@@ -157,8 +145,27 @@ function generateRewardsOfFocus(
   domain: string,
   currentPosition: string,
   side: "a" | "b",
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "diagnostic";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const focusDescription =
     side === "a"
       ? `When ${pole} is emphasized in the context of ${domain}`
@@ -177,8 +184,27 @@ function generateOveremphasisFeedback(
   pole: string,
   domain: string,
   side: "a" | "b",
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "diagnostic";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const base = `Early warning signs that ${pole} is being overdone in the ${domain} context include: the emergence of diminishing returns where additional investment in ${pole.toLowerCase()} yields progressively smaller benefits, the appearance of resistance or backlash from stakeholders who experience ${pole.toLowerCase()} as oppressive or constraining, and the gradual erosion of the complementary capacities that ${pole.toLowerCase()} depends on but does not itself generate.`;
 
   if (config.minAnalysisDepth >= 2) {
@@ -193,8 +219,27 @@ function generateNeglectRisks(
   dominantPole: string,
   domain: string,
   side: "a" | "b",
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "diagnostic";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const base = `When ${neglectedPole} is underfocused in favor of ${dominantPole} within ${domain}, the system incurs specific and predictable risks. The neglected pole does not simply remain static — it atrophies, creating a structural deficit that becomes increasingly costly to remediate. In the ${domain} domain, this manifests as growing blind spots that ${neglectedPole.toLowerCase()} would have illuminated, stakeholder alienation among those who need ${neglectedPole.toLowerCase()} to thrive, and the accumulation of "debt" in the neglected domain.`;
 
   if (config.includeExamples) {
@@ -209,8 +254,27 @@ function generateCircularCausalLoop(
   targetPole: string,
   domain: string,
   direction: string,
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "relational";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const isFuelsTarget = direction.includes("fuels");
   const source = sourcePole;
   const target = targetPole;
@@ -229,8 +293,27 @@ function generateBalkanizationRisk(
   oppositePole: string,
   domain: string,
   side: "a" | "b",
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "perspectival";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const base = `When the ${domain} system fragments into "${pole.toLowerCase()}-only" factions, the result is a balkanized landscape where stakeholders sort themselves into camps that exclusively champion ${pole.toLowerCase()} while demonizing ${oppositePole.toLowerCase()}. This fragmentation destroys the system's capacity for polarity management by converting a dynamic tension into a political conflict. Each faction develops its own vocabulary, metrics, and criteria for success that are incommensurate with the other faction's.`;
 
   if (config.includeExamples) {
@@ -245,8 +328,27 @@ function generateExtremityFeedback(
   domain: string,
   currentPosition: string,
   side: "a" | "b",
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "diagnostic";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const base = `Signs that ${pole} has become extreme in the ${domain} context include: the transformation of ${pole.toLowerCase()} from a value into an ideology — a closed system of belief that resists correction from evidence or feedback, the experience of stakeholders who feel that the system has become "too much" of ${pole.toLowerCase()} to the point of dysfunction, and the emergence of counter-movements or resistance that explicitly organize around the need to restore ${pole.toLowerCase()}'s opposite. The system's current position ("${currentPosition}") should be evaluated against these extremity markers to assess whether ${pole.toLowerCase()} has crossed from healthy expression into pathological excess.`;
 
   if (config.minAnalysisDepth >= 2) {
@@ -262,8 +364,27 @@ function generateTranscendenceReward(
   domain: string,
   desiredOutcome: string,
   side: "a" | "b",
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "synthetic";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const base = `When ${pole} is well-integrated with ${oppositePole} in the ${domain} context — rather than being emphasized at ${oppositePole}'s expense — the system achieves a qualitatively different level of functioning. This is the reward of transcendence: not the compromise of both poles but the emergence of capacities that are only available when both poles are simultaneously honored and actively managed. The desired outcome ("${desiredOutcome}") likely requires this transcendent integration rather than the maximization of either pole alone.`;
 
   if (config.includeExamples) {
@@ -277,8 +398,27 @@ function generateReflectionLoop(
   pole: string,
   domain: string,
   side: "a" | "b",
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "perspectival";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const base = `The ${pole} reflection loop invites the system to examine its own relationship with ${pole.toLowerCase()} in the ${domain} context: Are we cultivating ${pole.toLowerCase()} because it is genuinely valuable, or because it has become a default that we have stopped questioning? What assumptions about ${pole.toLowerCase()} are we making that deserve examination? How might our current expression of ${pole.toLowerCase()} be serving some stakeholders while marginalizing others? This meta-level reflection prevents the pole from becoming an unexamined dogma and keeps the system's engagement with ${pole.toLowerCase()} fresh, contextual, and responsive to changing conditions.`;
 
   if (config.minAnalysisDepth >= 2) {
@@ -294,8 +434,27 @@ function generateMetaReflection(
   domain: string,
   currentPosition: string,
   perspective: string,
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "synthetic";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 9,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   if (perspective === "meta-perspective") {
     const base = `From a meta-perspective on the ${poleA} ↔ ${poleB} polarity in the ${domain} context, the system's current position ("${currentPosition}") can be understood not as a fixed point but as a phase in an ongoing oscillation. The polarity is not a problem to be solved but a dynamic to be managed. The meta-perspective recognizes that the tension between ${poleA.toLowerCase()} and ${poleB.toLowerCase()} is a source of creative energy — a generative friction that, when properly channeled, produces innovations that neither pole could generate alone. The question is not "which pole should we choose?" but "how do we structure our engagement with this polarity so that it serves rather than depletes the system?"`;
 
@@ -323,20 +482,27 @@ function generateIntegrationSpectrum(
   poleA: string,
   poleB: string,
   domain: string,
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext
 ): Record<string, Record<string, string>> {
   const spectrum: Record<string, Record<string, string>> = {};
+  const totalCells = INTEGRATION_SPECTRUM_ROWS.length * INTEGRATION_SPECTRUM_LEVELS.length;
+  let cellIndex = 0;
 
   for (const dimension of INTEGRATION_SPECTRUM_ROWS) {
     spectrum[dimension] = {};
     for (const level of INTEGRATION_SPECTRUM_LEVELS) {
+      cellIndex++;
       spectrum[dimension][level] = generateSpectrumCell(
         dimension,
         level,
         poleA,
         poleB,
         domain,
-        config
+        config,
+        composerCtx,
+        cellIndex,
+        totalCells
       );
     }
   }
@@ -350,8 +516,27 @@ function generateSpectrumCell(
   poleA: string,
   poleB: string,
   domain: string,
-  config: DepthConfig
+  config: DepthConfig,
+  composerCtx?: PolarityComposerContext,
+  stepNumber?: number,
+  totalSteps?: number
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "perspectival";
+    const composed = composeToolContent({
+      toolName: "think_polarity",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: stepNumber ?? 1,
+      totalSteps: totalSteps ?? 64,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const levelNum = parseInt(level.charAt(0), 10);
   const levelDescriptor =
     levelNum === 1
@@ -832,12 +1017,22 @@ export function registerTool(server: McpServer): void {
           output_depth: args.output_depth ?? "standard",
         };
 
-        const polarityAnalysis = generatePolarityAnalysis(input);
+        const fullText = `${input.pole_a} vs ${input.pole_b} in ${input.domain}`;
+        getStructureForText(fullText, input.current_position);
+        const outputMode = args.output_mode ?? 'analytical';
+        const composerCtx: PolarityComposerContext = {
+          fullText,
+          initialPosition: input.current_position,
+          outputMode,
+        };
+
+        const polarityAnalysis = generatePolarityAnalysis(input, composerCtx);
         const integrationSpectrum = generateIntegrationSpectrum(
           input.pole_a,
           input.pole_b,
           input.domain,
-          DEPTH_CONFIGS[input.output_depth]
+          DEPTH_CONFIGS[input.output_depth],
+          composerCtx
         );
 
         const formattedOutput = formatPolarityMap(
@@ -846,7 +1041,7 @@ export function registerTool(server: McpServer): void {
           input.domain,
           polarityAnalysis,
           integrationSpectrum,
-          args.output_mode ?? 'analytical'
+          outputMode
         );
 
         const positionAssessment = generatePositionAssessment(input);
@@ -860,7 +1055,20 @@ export function registerTool(server: McpServer): void {
           desiredOutcome: input.desired_outcome,
         });
 
-        const archetypeSection = generateArchetypeSection(detectedArchetypes);
+        const archetypeComposed = composeToolContent({
+          toolName: "think_polarity",
+          text: fullText,
+          initialPosition: input.current_position,
+          mode: outputMode === "executive" ? "strategic" : outputMode === "exploratory" ? "creative" : "analytical",
+          subMode: "deductive",
+          stepNumber: 19,
+          totalSteps: 20,
+          thoughtType: "diagnostic" as ThoughtType,
+          previousOutputs: [],
+        });
+        const archetypeSection = archetypeComposed.length > 200
+          ? `## Systems Archetype Analysis\n\n${archetypeComposed}`
+          : generateArchetypeSection(detectedArchetypes);
         const epistemicAssessment = generateEpistemicAssessment(input);
 
         const epistemicStatus: EpistemicStatus = input.output_depth === 'exhaustive' ? 'well-supported' : input.output_depth === 'standard' ? 'tentative' : 'speculative';

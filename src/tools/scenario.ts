@@ -10,6 +10,8 @@ import type {
   FuturesWheelRing,
 } from "../types.js";
 import { formatScenarioPlanning } from "../utils/formatters.js";
+import { composeToolContent, getStructureForText } from "../utils/content-pipeline.js";
+import type { ThoughtType, ThinkingMode } from "../types.js";
 
 // ─── Scenario Generation Engine ──────────────────────────────────────────────
 
@@ -163,25 +165,61 @@ function generateSecondOrderConsequences(
 
 function generateThirdOrderConsequences(
   u1: string,
+  u2: string,
   u1Low: boolean,
   u2Low: boolean,
+  firstOrder: string[],
+  secondOrder: string[],
+  allPreviouslyGenerated: string[],
 ): string[] {
-  const templates: Record<string, string[]> = {
+  const templatePool: Record<string, string[]> = {
     positive_positive: [
-      `Potential for paradigm-level shift in how the domain is understood and organized`,
+      `Paradigm-level shift in how the domain is understood and organized`,
       `Risk of overconfidence and under-preparation for less favorable scenarios`,
+      `Emergence of new institutional forms optimized for sustained growth conditions`,
+      `Cultural narratives shift from scarcity to abundance mindset across the sector`,
+      `Regulatory frameworks evolve to accommodate rapid innovation velocity`,
+      `Cross-sector collaboration becomes the default operating mode`,
+      `Secondary markets develop to support the expanded ecosystem of growth-oriented actors`,
+      `Educational institutions redesign curricula to prepare future participants for the new paradigm`,
+      `Legacy organizations that fail to adapt face existential pressure from natively optimized competitors`,
+      `Global benchmarking shifts as the domain becomes a model for other sectors to emulate`,
     ],
     positive_negative: [
-      `Entrenched structural divisions that may persist across decades`,
+      `Entrenched structural divisions that persist across decades`,
       `Periodic crises of legitimacy as inequality becomes politically unsustainable`,
+      `Parallel systems emerge serving those excluded from ${u1}-dependent advantages`,
+      `Social cohesion erodes as access to ${u2} becomes a class marker`,
+      `Populist movements gain traction by promising to rebalance the asymmetry`,
+      `Brain drain from ${u2}-constrained regions accelerates over time`,
+      `Underground or informal economies develop to bypass ${u1}-centric gatekeeping`,
+      `International pressure mounts as the asymmetry creates cross-border spillover effects`,
+      `Generational resentment builds as younger cohorts inherit structural disadvantages`,
+      `Innovation stagnates in ${u2}-constrained sectors due to chronic underinvestment`,
     ],
     negative_positive: [
       `Fundamental restructuring of the domain around new organizing principles`,
       `Loss of valuable legacy capabilities that depended on the old ${u1}-rich environment`,
+      `Innovation ecosystems form around ${u2}-leveraging alternatives to ${u1}`,
+      `New market leaders emerge from organizations that adapted fastest to ${u1} constraints`,
+      `Knowledge transfer programs develop to preserve institutional memory during transition`,
+      `Regulatory sandboxes accelerate testing of ${u1}-independent models`,
+      `Cultural narratives reframe scarcity as a catalyst for creative problem-solving`,
+      `International partnerships form to share ${u2}-based solutions with ${u1}-constrained regions`,
+      `Talent migrates toward organizations demonstrating successful adaptation models`,
+      `Long-term competitive advantage accrues to entities that invested early in ${u1}-alternatives`,
     ],
     negative_negative: [
       `Complete paradigm collapse requiring reconstruction from foundational principles`,
       `Extended recovery period with potential for permanent capability loss`,
+      `Institutional trust deficit takes generations to rebuild`,
+      `Fragmentation into isolated self-sufficient units replacing coordinated systems`,
+      `Loss of collective problem-solving capacity as expertise disperses`,
+      `Cultural shift toward short-term survival thinking suppresses long-term planning`,
+      `Black market and informal governance structures fill the vacuum left by failing institutions`,
+      `International intervention becomes necessary as domestic capacity falls below minimum thresholds`,
+      `Historical precedents from prior collapses are studied and selectively adapted to current conditions`,
+      `Civil society organizations assume roles traditionally handled by formal institutions`,
     ],
   };
 
@@ -193,7 +231,54 @@ function generateThirdOrderConsequences(
         ? "positive_negative"
         : "positive_positive";
 
-  return templates[key];
+  const pool = templatePool[key];
+  const results: string[] = [];
+
+  const allKnown = [...allPreviouslyGenerated, ...firstOrder, ...secondOrder];
+
+  function jaccardSimilarity(a: string, b: string): number {
+    const wordsA = new Set(a.toLowerCase().split(/\s+/));
+    const wordsB = new Set(b.toLowerCase().split(/\s+/));
+    const intersection = new Set([...wordsA].filter((w) => wordsB.has(w)));
+    const union = new Set([...wordsA, ...wordsB]);
+    return union.size === 0 ? 0 : intersection.size / union.size;
+  }
+
+  function isUnique(candidate: string): boolean {
+    for (const existing of allKnown) {
+      if (jaccardSimilarity(candidate, existing) > 0.5) return false;
+    }
+    for (const existing of results) {
+      if (jaccardSimilarity(candidate, existing) > 0.5) return false;
+    }
+    return true;
+  }
+
+  for (const second of secondOrder) {
+    const seed = second.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
+    const templateIdx = Math.abs(seed) % pool.length;
+    const candidate = pool[templateIdx];
+
+    if (isUnique(candidate)) {
+      results.push(candidate);
+    } else {
+      const fallbackIdx = (templateIdx + 1 + Math.abs(seed >> 4)) % pool.length;
+      const fallback = pool[fallbackIdx];
+      if (isUnique(fallback)) {
+        results.push(fallback);
+      }
+    }
+  }
+
+  if (results.length < 2 && pool.length > results.length) {
+    for (let i = 0; i < pool.length && results.length < 2; i++) {
+      if (isUnique(pool[i])) {
+        results.push(pool[i]);
+      }
+    }
+  }
+
+  return results;
 }
 
 function generatePreMortem(focalQuestion: string): PreMortemFailure[] {
@@ -275,10 +360,44 @@ function generateFuturesWheel(focalQuestion: string): FuturesWheelRing {
     ],
   };
 
+  const thirdRingTemplates: string[] = [
+    `Institutional memory and culture gradually encode the new normal, making reversal increasingly difficult`,
+    `New generation of professionals grows up in the transformed landscape, treating it as the baseline`,
+    `Investment patterns permanently shift to reinforce the emerging structure`,
+    `Regulatory frameworks adapt to codify the new reality into formal governance`,
+    `Public expectations recalibrate, creating political pressure against reverting to old models`,
+    `Competing organizations that resisted change lose market position or relevance`,
+    `Supply chain dependencies realign to favor entities that adapted early to the new conditions`,
+    `Educational and training curricula evolve to reflect the transformed landscape as the new standard`,
+    `Cross-industry knowledge transfer accelerates as best practices from the new paradigm spread`,
+    `Legacy infrastructure becomes a stranded asset as investment flows toward the emerging model`,
+    `Social norms shift to stigmatize behaviors associated with the previous paradigm`,
+    `New metrics and KPs emerge that reflect the transformed value system of the domain`,
+    `Talent migration patterns reverse as the new center of gravity attracts previously unaligned professionals`,
+    `Secondary markets develop around the infrastructure and services supporting the new paradigm`,
+    `Risk models are rewritten as historical correlations break down under the new regime`,
+    `Stakeholder coalitions realign as the distribution of winners and losers becomes entrenched`,
+    `Narrative authority shifts from legacy institutions to emergent thought leaders in the new paradigm`,
+    `Resource allocation mechanisms transition from optimization for the old system to the new one`,
+    `Cultural artifacts — media, literature, art — begin reflecting and reinforcing the new dominant narrative`,
+    `Inter-generational knowledge transfer gaps widen as experienced practitioners of the old model retire`,
+  ];
+
   const thirdRing: Record<string, string> = {};
+  const usedTemplates = new Set<string>();
   for (const [parent, children] of Object.entries(secondRing)) {
     for (const child of children) {
-      thirdRing[child] = `Institutional memory and culture gradually encode the new normal, making reversal increasingly difficult`;
+      const seed = child.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
+      let templateIdx = (Math.abs(seed) + Object.keys(thirdRing).length) % thirdRingTemplates.length;
+      let candidate = thirdRingTemplates[templateIdx];
+      let attempts = 0;
+      while (usedTemplates.has(candidate) && attempts < thirdRingTemplates.length) {
+        templateIdx = (templateIdx + 1) % thirdRingTemplates.length;
+        candidate = thirdRingTemplates[templateIdx];
+        attempts++;
+      }
+      thirdRing[child] = candidate;
+      usedTemplates.add(candidate);
     }
   }
 
@@ -382,6 +501,23 @@ export function registerTool(server: McpServer): void {
           output_mode,
         } = args;
 
+        // Hybrid mode: attempt content composer first, fall back to templates
+        const fullText = focal_question + " " + key_uncertainties[0] + " " + key_uncertainties[1];
+        const structure = getStructureForText(fullText, focal_question);
+
+        const composeSection = (thoughtType: ThoughtType, stepNumber: number, totalSections: number, prevOutputs: string[]): string => {
+          return composeToolContent({
+            toolName: "think_scenario",
+            text: fullText,
+            initialPosition: focal_question,
+            mode: "analytical" as ThinkingMode,
+            stepNumber,
+            totalSteps: totalSections,
+            thoughtType,
+            previousOutputs: prevOutputs,
+          });
+        };
+
         const [u1, u2] = key_uncertainties;
 
         const axisStates: { u1Low: boolean; u2Low: boolean }[] = [
@@ -391,29 +527,65 @@ export function registerTool(server: McpServer): void {
           { u1Low: false, u2Low: false },
         ];
 
-        const scenarios: ScenarioNarrative[] = axisStates.map(({ u1Low, u2Low }) => {
+        const scenarios: ScenarioNarrative[] = [];
+        for (const { u1Low, u2Low } of axisStates) {
+          const scenarioIdx = scenarios.length;
           const name = generateArchetypalName(u1Low, u2Low);
-          const drivingForces = generateDrivingForces(u1, u2, u1Low, u2Low, known_driving_forces ?? "");
-          const firstOrder = generateFirstOrderConsequences(name, u1, u2, u1Low, u2Low);
 
-          return {
+          // Try composer for description (prospective)
+          const descComposed = composeSection('prospective', scenarioIdx * 5, 20, []);
+          const description = descComposed.length > 200
+            ? descComposed
+            : generateDescription(focal_question, u1, u2, u1Low, u2Low, name);
+
+          const drivingForces = generateDrivingForces(u1, u2, u1Low, u2Low, known_driving_forces ?? "");
+
+          // Try composer for first-order consequences (diagnostic)
+          const firstOrderComposed = composeSection('diagnostic', scenarioIdx * 5 + 1, 20, []);
+          const firstOrder = firstOrderComposed.length > 200
+            ? firstOrderComposed.split(/\n+/).filter((s: string) => s.trim().length > 5)
+            : generateFirstOrderConsequences(name, u1, u2, u1Low, u2Low);
+
+          // Try composer for second-order consequences (relational)
+          const secondOrderComposed = composeSection('relational', scenarioIdx * 5 + 2, 20, [description]);
+          const secondOrder = secondOrderComposed.length > 200
+            ? secondOrderComposed.split(/\n+/).filter((s: string) => s.trim().length > 5)
+            : generateSecondOrderConsequences(u1, u2, u1Low, u2Low, firstOrder);
+
+          const allPrevious: string[] = [];
+          for (const existing of scenarios) {
+            allPrevious.push(...existing.first_order_consequences, ...existing.second_order_consequences, ...existing.third_order_consequences);
+          }
+          allPrevious.push(...firstOrder, ...secondOrder);
+
+          // Try composer for third-order consequences (prospective)
+          const thirdOrderComposed = composeSection('prospective', scenarioIdx * 5 + 3, 20, [...firstOrder, ...secondOrder]);
+          const thirdOrder = thirdOrderComposed.length > 200
+            ? thirdOrderComposed.split(/\n+/).filter((s: string) => s.trim().length > 5)
+            : generateThirdOrderConsequences(u1, u2, u1Low, u2Low, firstOrder, secondOrder, allPrevious);
+
+          scenarios.push({
             name,
             axis_position: `${u1}: ${u1Low ? "Low" : "High"} / ${u2}: ${u2Low ? "Low" : "High"}`,
-            description: generateDescription(focal_question, u1, u2, u1Low, u2Low, name),
+            description,
             driving_forces: drivingForces,
             probability: generateProbability(u1Low, u2Low),
             first_order_consequences: firstOrder,
-            second_order_consequences: generateSecondOrderConsequences(u1, u2, u1Low, u2Low, firstOrder),
-            third_order_consequences: generateThirdOrderConsequences(u1, u1Low, u2Low),
-          };
-        });
+            second_order_consequences: secondOrder,
+            third_order_consequences: thirdOrder,
+          });
+        }
 
         const preMortem = generatePreMortem(focal_question);
         const futuresWheel = generateFuturesWheel(focal_question);
 
+        // Try composer for strategic implications (synthetic)
+        const strategicComposed = composeSection('synthetic', 19, 20, scenarios.map((s) => s.description));
         const strategicImplications =
           output_depth === "exhaustive"
-            ? generateStrategicImplications(scenarios)
+            ? (strategicComposed.length > 200
+                ? { robust: strategicComposed.split(/\n+/).filter((s: string) => s.trim().length > 5), scenario_specific: [] }
+                : generateStrategicImplications(scenarios))
             : undefined;
 
         const epistemicStatus: EpistemicStatus =

@@ -2,7 +2,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { DEVELOPMENTAL_LEVELS, QUADRANTS, VISION_LOGIC_SUBSTAGES } from "../constants.js";
 import { formatHierarchical } from "../utils/formatters.js";
-import type { EpistemicStatus, SuggestedTool, OutputMode, VisionLogicSubstage } from "../types.js";
+import type { EpistemicStatus, SuggestedTool, OutputMode, VisionLogicSubstage, ThoughtType } from "../types.js";
+import { composeToolContent, getStructureForText } from "../utils/content-pipeline.js";
 
 const OUTPUT_DEPTH_ENUM = z.enum(["essential", "standard", "exhaustive"]);
 
@@ -10,10 +11,17 @@ const QUADRANT_KEYS = ["intentional", "behavioral", "cultural", "social"] as con
 
 const VISION_LOGIC_ORDER: VisionLogicSubstage[] = ["systematic", "metasystematic", "paradigmatic", "cross-paradigmatic"];
 
+interface HierarchicalComposerContext {
+  fullText: string;
+  initialPosition: string;
+  outputMode: OutputMode;
+}
+
 function generateVisionLogicAnalysis(params: {
   system: string;
   currentStage: string;
   systemDescription: string;
+  composerCtx?: HierarchicalComposerContext;
 }): {
   currentSubstage: VisionLogicSubstage;
   evidence: string[];
@@ -22,7 +30,40 @@ function generateVisionLogicAnalysis(params: {
   typicalOutputCurrent: string;
   typicalOutputNext: string | null;
 } {
-  const { system, currentStage, systemDescription } = params;
+  const { system, currentStage, systemDescription, composerCtx } = params;
+
+  if (composerCtx) {
+    const composed = composeToolContent({
+      toolName: "think_hierarchical",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: 1,
+      totalSteps: 2,
+      thoughtType: "relational" as ThoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) {
+      const stageToSubstageMap: Record<string, VisionLogicSubstage> = {
+        archaic: "systematic", magic: "systematic", "magic-mythic": "systematic", mythic: "systematic",
+        "modern-rational": "systematic", postmodern: "metasystematic", integral: "metasystematic",
+        "super-integral": "paradigmatic",
+      };
+      const currentSubstage = stageToSubstageMap[currentStage] ?? "systematic";
+      const currentIndex = VISION_LOGIC_ORDER.indexOf(currentSubstage);
+      const nextSubstage = currentIndex < VISION_LOGIC_ORDER.length - 1 ? VISION_LOGIC_ORDER[currentIndex + 1] : null;
+      const currentSubstageInfo = VISION_LOGIC_SUBSTAGES[currentSubstage];
+      return {
+        currentSubstage,
+        evidence: [composed],
+        nextSubstage,
+        gapAnalysis: composed,
+        typicalOutputCurrent: currentSubstageInfo.typical_output,
+        typicalOutputNext: nextSubstage ? VISION_LOGIC_SUBSTAGES[nextSubstage]?.typical_output ?? null : null,
+      };
+    }
+  }
 
   const stageToSubstageMap: Record<string, VisionLogicSubstage> = {
     archaic: "systematic",
@@ -99,7 +140,26 @@ function generateCellContent(
   culturalIndicators: string,
   structuralIndicators: string,
   depth: string,
+  composerCtx?: HierarchicalComposerContext,
+  cellIndex?: number,
+  totalCells?: number,
 ): string {
+  if (composerCtx) {
+    const thoughtType: ThoughtType = "developmental";
+    const composed = composeToolContent({
+      toolName: "think_hierarchical",
+      text: composerCtx.fullText,
+      initialPosition: composerCtx.initialPosition,
+      mode: composerCtx.outputMode === "executive" ? "strategic" : composerCtx.outputMode === "exploratory" ? "creative" : "analytical",
+      subMode: "deductive",
+      stepNumber: cellIndex ?? 1,
+      totalSteps: totalCells ?? 32,
+      thoughtType,
+      previousOutputs: [],
+    });
+    if (composed.length > 200) return composed;
+  }
+
   const stageInfo = DEVELOPMENTAL_LEVELS[stage as keyof typeof DEVELOPMENTAL_LEVELS];
   const quadrantInfo = QUADRANTS[quadrant as keyof typeof QUADRANTS];
 
@@ -213,12 +273,24 @@ export function registerTool(server: McpServer): void {
           output_mode,
         } = args;
 
+        const fullText = `${system} ${system_description} ${observable_behaviors} ${cultural_indicators} ${structural_indicators}`;
+        getStructureForText(fullText, `${current_stage} stage characteristics`);
+        const om = output_mode ?? 'analytical';
+        const composerCtx: HierarchicalComposerContext = {
+          fullText,
+          initialPosition: `${current_stage} stage characteristics`,
+          outputMode: om,
+        };
+
         const allStageKeys = Object.keys(DEVELOPMENTAL_LEVELS);
         const stagesToMap = getFutureStages(current_stage, allStageKeys, 4);
+        const totalCells = stagesToMap.length * QUADRANT_KEYS.length;
+        let cellIndex = 0;
 
         const stageRows = stagesToMap.map((stage) => {
-          const cells = QUADRANT_KEYS.map((quadrant) =>
-            generateCellContent(
+          const cells = QUADRANT_KEYS.map((quadrant) => {
+            cellIndex++;
+            return generateCellContent(
               stage,
               quadrant,
               system,
@@ -227,8 +299,11 @@ export function registerTool(server: McpServer): void {
               cultural_indicators,
               structural_indicators,
               output_depth,
-            )
-          );
+              composerCtx,
+              cellIndex,
+              totalCells,
+            );
+          });
 
           const stageInfo = DEVELOPMENTAL_LEVELS[stage as keyof typeof DEVELOPMENTAL_LEVELS];
           return {
@@ -250,6 +325,7 @@ export function registerTool(server: McpServer): void {
             system,
             currentStage: current_stage,
             systemDescription: system_description,
+            composerCtx,
           });
 
           const currentSubstageInfo = VISION_LOGIC_SUBSTAGES[visionLogic.currentSubstage];

@@ -222,6 +222,7 @@ export interface SequentialStep {
   claim: string;
   reasoning: string;
   confidence: number;
+  confidence_justification: string;
   reasoning_sub_mode?: ReasoningSubMode;
   assumptions: string[];
   counter_argument: string;
@@ -319,4 +320,68 @@ export interface FuturesWheelRing {
   first_ring: string[];
   second_ring: Record<string, string[]>;
   third_ring: Record<string, string>;
+}
+
+export type SubjectType = 'human' | 'ai-system' | 'organization' | 'technical-system' | 'mixed';
+
+export interface DomainClassification {
+  domain: string;
+  confidence: number;
+}
+
+export interface SubjectTypeConfidence {
+  "ai-system": number;
+  organization: number;
+  "technical-system": number;
+  human: number;
+}
+
+export interface ProblemStructure {
+  entities: string[];
+  relationships: string[];
+  claims: string[];
+  uncertainties: string[];
+  domain_signals: string[];
+  primary_domain: string;
+  subject_type: SubjectType;
+  subject_type_confidence: SubjectTypeConfidence;
+  problem_type: string;
+  implicit_assumptions: string[];
+  initial_position?: string;
+}
+
+export type ThoughtType =
+  | 'diagnostic'       // What IS this problem?
+  | 'deconstructive'   // Break it apart
+  | 'relational'       // How do pieces connect?
+  | 'perspectival'     // See from multiple angles
+  | 'developmental'    // How does it evolve?
+  | 'prospective'      // What could happen?
+  | 'synthetic'        // Integrate everything
+  | 'corrective';      // Fix reasoning errors
+
+export type NavigatorMode = 'full' | 'guided' | 'minimal';
+export type NavigatorAction = 'plan' | 'advance' | 'replan' | 'terminate';
+
+export interface ReasoningNode {
+  id: number;
+  tool: string;  // e.g., "think_sequential", "think_cynefin"
+  thoughtType: string;
+  purpose: string;
+  params: Record<string, unknown>;
+  dependsOn: number[];
+  status: 'pending' | 'ready' | 'completed' | 'blocked' | 'skipped';
+  output?: string;
+  qualityScore?: number;
+}
+
+export interface ReasoningGraph {
+  totalNodes: number;
+  completedNodes: number;
+  nodes: ReasoningNode[];
+  parallelGroups: number[][];
+  coverage: Record<string, number>;
+  nextInstruction: string;
+  sessionToken: string;
+  replanCount: number;
 }

@@ -9,8 +9,16 @@ import type {
   CausalPolarity,
   SystemsArchetype,
   LeveragePointCategory,
+  ThoughtType,
 } from "../types.js";
-import { SYSTEMS_ARCHETYPES, LEVERAGE_POINTS } from "../constants.js";
+import { SYSTEMS_ARCHETYPES, LEVERAGE_POINTS, CHARACTER_LIMIT } from "../constants.js";
+import { CAUSAL_PATTERNS, LEVERAGE_PATTERNS } from "../constants/patterns.js";
+import { composeToolContent, getStructureForText } from "../utils/content-pipeline.js";
+
+function enforceLimit(text: string): string {
+  if (text.length <= CHARACTER_LIMIT) return text;
+  return text.substring(0, CHARACTER_LIMIT - 200) + "\n\n---\n*Output truncated due to size limit.*";
+}
 
 interface CausalRelationship {
   from: string;
@@ -41,6 +49,8 @@ interface ArchetypeDetection {
   structure: string;
   evidence: string;
   intervention_strategy: string;
+  confidence?: number;
+  isPartial?: boolean;
 }
 
 function depthToRelationshipCount(depth: OutputDepth): number {
@@ -86,6 +96,54 @@ function determineFollowup(depth: OutputDepth): SuggestedTool[] {
   return base;
 }
 
+/**
+ * Supplements variables to ensure at least minCount for meaningful cycle detection.
+ * Derives supplemental variables from problem context keywords.
+ */
+function supplementVariables(variables: string[], problemContext: string, minCount: number): string[] {
+  if (variables.length >= minCount) return variables;
+
+  const supplemental: string[] = [];
+  const contextLower = problemContext.toLowerCase();
+
+  // Context-aware supplemental variables
+  const contextHints: Record<string, string[]> = {
+    stress: ["Burnout", "Morale", "Turnover"],
+    performance: ["Quality", "Efficiency", "Capacity"],
+    growth: ["Resources", "Constraints", "Saturation"],
+    team: ["Communication", "Trust", "Alignment"],
+    market: ["Demand", "Competition", "Innovation"],
+    change: ["Resistance", "Adaptation", "Learning"],
+    system: ["Complexity", "Feedback", "Delays"],
+    project: ["Scope", "Timeline", "Resources"],
+    risk: ["Uncertainty", "Exposure", "Vulnerability"],
+    cost: ["Budget", "Investment", "ROI"],
+  };
+
+  for (const [keyword, vars] of Object.entries(contextHints)) {
+    if (contextLower.includes(keyword)) {
+      for (const v of vars) {
+        if (supplemental.length + variables.length >= minCount) break;
+        if (!variables.some(existing => existing.toLowerCase().includes(v.toLowerCase()))) {
+          supplemental.push(v);
+        }
+      }
+    }
+    if (supplemental.length + variables.length >= minCount) break;
+  }
+
+  // Fallback to generic system variables
+  const fallbackVars = ["Resources", "Capacity", "Constraints", "Pressure", "Feedback"];
+  for (const fv of fallbackVars) {
+    if (supplemental.length + variables.length >= minCount) break;
+    if (!variables.some(existing => existing.toLowerCase().includes(fv.toLowerCase()))) {
+      supplemental.push(fv);
+    }
+  }
+
+  return [...variables, ...supplemental];
+}
+
 function generateOperationalDefinition(variable: string, problemContext: string): string {
   const definitions: Record<string, string> = {
     stress: `The level of psychological, physiological, or organizational strain experienced by the system in response to demands exceeding available coping capacity.`,
@@ -126,6 +184,364 @@ function generateOperationalDefinition(variable: string, problemContext: string)
   return `The measurable level or degree of ${variable.toLowerCase()} within the context of "${problemContext.substring(0, 60)}...", serving as a key variable in the system's causal structure.`;
 }
 
+/**
+ * Causal language patterns for extracting relationships from text.
+ * Each pattern captures a common way causality is expressed.
+ */
+const CAUSAL_LANGUAGE_PATTERNS: {
+  regex: RegExp;
+  polarityFromVerb: (verb: string) => CausalPolarity;
+}[] = [
+  // "X increases Y", "X reduces Y", "X causes Y", "X leads to Y"
+  { regex: /(\w[\w\s]+?)\s+(?:increases|boosts|amplifies|strengthens|enhances|drives|accelerates|promotes|builds|expands|improves|grows|raises)\s+(\w[\w\s]+?)(?:\.|,|;|$)/gi, polarityFromVerb: () => "+" as CausalPolarity },
+  { regex: /(\w[\w\s]+?)\s+(?:decreases|reduces|diminishes|weakens|erodes|lowers|undermines|impairs|hinders|suppresses|limits|constrains|drains|damages|worsens)\s+(\w[\w\s]+?)(?:\.|,|;|$)/gi, polarityFromVerb: () => "-" as CausalPolarity },
+  { regex: /(\w[\w\s]+?)\s+(?:causes|triggers|generates|produces|creates|results in|leads to|gives rise to|brings about)\s+(\w[\w\s]+?)(?:\.|,|;|$)/gi, polarityFromVerb: () => "+" as CausalPolarity },
+  { regex: /(\w[\w\s]+?)\s+(?:prevents|stops|blocks|inhibits|avoids|mitigates|counters|opposes|resists)\s+(\w[\w\s]+?)(?:\.|,|;|$)/gi, polarityFromVerb: () => "-" as CausalPolarity },
+  // "X affects Y" - neutral, determine by context
+  { regex: /(\w[\w\s]+?)\s+(?:affects|influences|impacts|shapes|determines|drives|correlates with)\s+(\w[\w\s]+?)(?:\.|,|;|$)/gi, polarityFromVerb: (_v: string) => "+" as CausalPolarity },
+  // "Y is caused by X" (passive)
+  { regex: /(\w[\w\s]+?)\s+(?:is caused by|is driven by|is fueled by|stems from|arises from|results from|is a consequence of)\s+(\w[\w\s]+?)(?:\.|,|;|$)/gi, polarityFromVerb: () => "+" as CausalPolarity },
+  // "Y decreases when X increases" type patterns
+  { regex: /(\w[\w\s]+?)\s+(?:rises|increases|grows)\s+(?:as|when)\s+(\w[\w\s]+?)\s+(?:rises|increases|grows)/gi, polarityFromVerb: () => "+" as CausalPolarity },
+  { regex: /(\w[\w\s]+?)\s+(?:falls|decreases|declines)\s+(?:as|when)\s+(\w[\w\s]+?)\s+(?:rises|increases|grows)/gi, polarityFromVerb: () => "-" as CausalPolarity },
+];
+
+/**
+ * Known variable-type polarity heuristics for when text extraction is insufficient.
+ */
+const VARIABLE_POLARITY_HINTS: Record<string, { positive?: string[]; negative?: string[] }> = {
+  stress: { positive: ["burnout", "turnover", "errors", "resistance"], negative: ["performance", "morale", "quality", "learning"] },
+  performance: { positive: ["resources", "motivation", "learning", "collaboration"], negative: ["stress", "burnout", "complexity"] },
+  resources: { positive: ["performance", "morale", "capacity", "quality"], negative: ["stress", "scarcity"] },
+  trust: { positive: ["collaboration", "communication", "morale", "transparency"], negative: ["resistance", "turnover"] },
+  communication: { positive: ["trust", "alignment", "collaboration", "transparency"], negative: ["misalignment", "conflict"] },
+  motivation: { positive: ["performance", "innovation", "engagement"], negative: ["burnout", "turnover"] },
+  complexity: { positive: ["errors", "stress", "communication overhead"], negative: ["performance", "speed"] },
+  burnout: { positive: ["turnover", "errors", "resistance"], negative: ["performance", "morale", "quality"] },
+  morale: { positive: ["performance", "collaboration", "retention"], negative: ["turnover", "resistance"] },
+  turnover: { positive: ["stress", "costs"], negative: ["morale", "performance", "knowledge"] },
+  quality: { positive: ["customer satisfaction", "trust", "reputation"], negative: ["rework", "costs"] },
+  innovation: { positive: ["competitiveness", "growth", "engagement"], negative: ["stability", "predictability"] },
+  collaboration: { positive: ["trust", "innovation", "performance"], negative: ["silo formation"] },
+  accountability: { positive: ["quality", "trust", "performance"], negative: ["blame", "fear"] },
+  autonomy: { positive: ["motivation", "innovation", "engagement"], negative: ["alignment", "coordination"] },
+  alignment: { positive: ["performance", "efficiency", "collaboration"], negative: ["autonomy", "innovation"] },
+  capacity: { positive: ["performance", "growth", "quality"], negative: ["stress", "bottlenecks"] },
+  learning: { positive: ["performance", "adaptation", "innovation"], negative: ["errors", "resistance"] },
+  resistance: { positive: ["stress", "turnover"], negative: ["change", "innovation", "adaptation"] },
+  transparency: { positive: ["trust", "accountability", "collaboration"], negative: ["politics", "misinformation"] },
+};
+
+function extractRelationshipsFromText(
+  problemStatement: string,
+  variables: string[],
+): CausalRelationship[] {
+  const relationships: CausalRelationship[] = [];
+  const seen = new Set<string>();
+
+  for (const pattern of CAUSAL_LANGUAGE_PATTERNS) {
+    const text = problemStatement;
+    let match: RegExpExecArray | null;
+    const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+
+    while ((match = regex.exec(text)) !== null) {
+      const rawCause = match[1].trim();
+      const rawEffect = match[2].trim();
+
+      const causeVar = findBestVariableMatch(rawCause, variables);
+      const effectVar = findBestVariableMatch(rawEffect, variables);
+
+      if (causeVar && effectVar && causeVar !== effectVar) {
+        const key = `${causeVar}→${effectVar}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          const polarity = pattern.polarityFromVerb(match[0]);
+          relationships.push({
+            from: causeVar,
+            to: effectVar,
+            polarity,
+            type: "direct",
+            description: generateRelationshipDescription(causeVar, effectVar, polarity, problemStatement, undefined),
+          });
+        }
+      }
+    }
+  }
+
+  return relationships;
+}
+
+function findBestVariableMatch(text: string, variables: string[]): string | null {
+  const textLower = text.toLowerCase();
+  const words = textLower.split(/\s+/).filter((w) => w.length > 2);
+
+  let bestMatch: string | null = null;
+  let bestScore = 0;
+
+  for (const variable of variables) {
+    const varLower = variable.toLowerCase();
+    const varWords = varLower.split(/\s+/);
+
+    if (textLower.includes(varLower)) {
+      return variable;
+    }
+
+    let score = 0;
+    for (const vw of varWords) {
+      if (vw.length > 2 && words.some((w) => w.includes(vw) || vw.includes(w))) {
+        score++;
+      }
+    }
+
+    if (score > bestScore && score >= Math.ceil(varWords.length * 0.5)) {
+      bestScore = score;
+      bestMatch = variable;
+    }
+  }
+
+  return bestMatch;
+}
+
+function extractRelationshipsFromKnownLoops(
+  knownFeedbackLoops: string | undefined,
+  variables: string[],
+  problemStatement: string,
+): CausalRelationship[] {
+  if (!knownFeedbackLoops || !knownFeedbackLoops.trim()) return [];
+
+  const relationships: CausalRelationship[] = [];
+  const seen = new Set<string>();
+
+  const clauses = knownFeedbackLoops.split(",").map((s) => s.trim()).filter(Boolean);
+
+  const polarityVerbs: Record<string, CausalPolarity> = {
+    increases: "+", boosts: "+", amplifies: "+", strengthens: "+", enhances: "+",
+    improves: "+", promotes: "+", builds: "+", expands: "+", drives: "+",
+    reduces: "-", decreases: "-", diminishes: "-", weakens: "-", erodes: "-",
+    undermines: "-", impairs: "-", hinders: "-", suppresses: "-", limits: "-",
+    causes: "+", triggers: "+", leads: "+", generates: "+",
+    prevents: "-", blocks: "-", inhibits: "-", counters: "-",
+  };
+
+  for (const clause of clauses) {
+    const clauseLower = clause.toLowerCase();
+
+    let polarity: CausalPolarity | null = null;
+    let verbPos = -1;
+
+    for (const [verb, pol] of Object.entries(polarityVerbs)) {
+      const pos = clauseLower.indexOf(verb);
+      if (pos !== -1 && (verbPos === -1 || pos < verbPos)) {
+        polarity = pol as CausalPolarity;
+        verbPos = pos;
+      }
+    }
+
+    if (!polarity) continue;
+
+    const beforeVerb = clause.substring(0, verbPos).trim();
+    const afterVerbStart = clauseLower.indexOf(Object.entries(polarityVerbs).find(([_, p]) => p === polarity)?.[0] || "") + (Object.entries(polarityVerbs).find(([_, p]) => p === polarity)?.[0].length || 0);
+    const afterVerb = clause.substring(afterVerbStart).trim().replace(/^[,\s]+/, "");
+
+    const causeVar = findBestVariableMatch(beforeVerb, variables);
+    const effectVar = findBestVariableMatch(afterVerb, variables);
+
+    if (causeVar && effectVar && causeVar !== effectVar) {
+      const key = `${causeVar}→${effectVar}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        relationships.push({
+          from: causeVar,
+          to: effectVar,
+          polarity,
+          type: "direct",
+          description: generateRelationshipDescription(causeVar, effectVar, polarity, problemStatement, undefined),
+        });
+      }
+    }
+  }
+
+  return relationships;
+}
+
+function matchCausalPatterns(
+  variables: string[],
+  problemStatement: string,
+): CausalRelationship[] {
+  const relationships: CausalRelationship[] = [];
+  const seen = new Set<string>();
+  const textLower = problemStatement.toLowerCase();
+
+  for (const pattern of CAUSAL_PATTERNS) {
+    // Check if any evidence marker is present in the problem statement
+    const matchesEvidence = pattern.evidence_markers.some((marker) =>
+      textLower.includes(marker.toLowerCase()),
+    );
+
+    if (!matchesEvidence) continue;
+
+    // Check if the pattern's cause and effect variables map to our variables
+    const causeVar = findBestVariableMatch(pattern.structure.cause, variables);
+    const effectVar = findBestVariableMatch(pattern.structure.effect, variables);
+
+    if (causeVar && effectVar && causeVar !== effectVar) {
+      const key = `${causeVar}→${effectVar}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        relationships.push({
+          from: causeVar,
+          to: effectVar,
+          polarity: "+", // Causal patterns imply positive causation unless stated otherwise
+          type: "direct",
+          description: `${pattern.description}. ${pattern.structure.mechanism}`,
+        });
+      }
+    }
+  }
+
+  return relationships;
+}
+
+function generateSemanticRelationships(
+  variables: string[],
+  problemStatement: string,
+  existing: CausalRelationship[],
+  requiredCount: number,
+): CausalRelationship[] {
+  const relationships = [...existing];
+  const existingPairs = new Set(relationships.map((r) => `${r.from}→${r.to}`));
+  const contextLower = problemStatement.toLowerCase();
+
+  // Generate relationships based on variable polarity hints
+  for (const variable of variables) {
+    const hints = VARIABLE_POLARITY_HINTS[variable.toLowerCase()];
+    if (!hints) continue;
+
+    // Positive relationships
+    for (const target of hints.positive || []) {
+      const targetVar = findBestVariableMatch(target, variables);
+      if (targetVar && targetVar !== variable) {
+        const key = `${variable}→${targetVar}`;
+        if (!existingPairs.has(key)) {
+          existingPairs.add(key);
+          relationships.push({
+            from: variable,
+            to: targetVar,
+            polarity: "+",
+            type: "direct",
+            description: generateRelationshipDescription(variable, targetVar, "+", problemStatement, undefined),
+          });
+        }
+      }
+    }
+
+    // Negative relationships
+    for (const target of hints.negative || []) {
+      const targetVar = findBestVariableMatch(target, variables);
+      if (targetVar && targetVar !== variable) {
+        const key = `${variable}→${targetVar}`;
+        if (!existingPairs.has(key)) {
+          existingPairs.add(key);
+          relationships.push({
+            from: variable,
+            to: targetVar,
+            polarity: "-",
+            type: "direct",
+            description: generateRelationshipDescription(variable, targetVar, "-", problemStatement, undefined),
+          });
+        }
+      }
+    }
+
+    if (relationships.length >= requiredCount * 2) break;
+  }
+
+  // If still not enough, generate based on hash for deterministic output
+  if (relationships.length < requiredCount) {
+    for (let i = 0; i < variables.length && relationships.length < requiredCount; i++) {
+      for (let j = 0; j < variables.length && relationships.length < requiredCount; j++) {
+        if (i === j) continue;
+        const key = `${variables[i]}→${variables[j]}`;
+        if (!existingPairs.has(key)) {
+          existingPairs.add(key);
+          // Use context to determine more meaningful polarity
+          const polarity = determinePolarity(variables[i], variables[j], problemStatement);
+          relationships.push({
+            from: variables[i],
+            to: variables[j],
+            polarity,
+            type: "indirect",
+            description: generateRelationshipDescription(variables[i], variables[j], polarity, problemStatement, undefined),
+          });
+        }
+      }
+    }
+  }
+
+  return relationships.slice(0, Math.max(requiredCount, relationships.length));
+}
+
+/**
+ * Builds a rich causal graph with multiple overlapping cycles.
+ * Creates: (1) backbone chain, (2) back-links for full-graph cycles,
+ * (3) cross-links for shorter cycles, (4) short-cycle back-links.
+ */
+function ensureGraphHasCycles(
+  variables: string[],
+  relationships: CausalRelationship[],
+  requiredCount: number,
+  problemStatement: string,
+): CausalRelationship[] {
+  if (variables.length < 2) return relationships;
+
+  const existingPairs = new Set(relationships.map((r) => `${r.from}→${r.to}`));
+  const addRel = (from: string, to: string, polarity: CausalPolarity, type: CausalRelationship["type"] = "direct") => {
+    const key = `${from}→${to}`;
+    if (!existingPairs.has(key) && from !== to) {
+      existingPairs.add(key);
+      relationships.push({
+        from,
+        to,
+        polarity,
+        type,
+        description: generateRelationshipDescription(from, to, polarity, problemStatement, undefined),
+      });
+    }
+  };
+
+  // 1. Backbone chain: v0→v1→v2→...→vn
+  for (let i = 0; i < variables.length - 1; i++) {
+    addRel(variables[i], variables[i + 1], "+");
+  }
+
+  // 2. Primary back-link: vn→v0 (creates full-graph cycle)
+  addRel(variables[variables.length - 1], variables[0], "-");
+
+  // 3. Secondary back-link: vn-1→v0 (creates shorter cycle with different polarity)
+  if (variables.length >= 3) {
+    addRel(variables[variables.length - 2], variables[0], "+");
+  }
+
+  // 4. Cross-links for additional cycle paths (v_i → v_{i+2})
+  for (let i = 0; i < variables.length - 2; i++) {
+    const polarity: CausalPolarity = i % 2 === 0 ? "+" : "-";
+    addRel(variables[i], variables[i + 2], polarity, "indirect");
+  }
+
+  // 5. Short-cycle back-links: v_{i+2} → v_i for overlapping 2-step loops
+  for (let i = 0; i < variables.length - 2; i += 2) {
+    addRel(variables[i + 2], variables[i], "-", "direct");
+  }
+
+  // 6. Middle-to-start back-link for odd-length cycles
+  if (variables.length >= 4) {
+    const midIdx = Math.floor(variables.length / 2);
+    addRel(variables[midIdx], variables[0], "-");
+  }
+
+  return relationships;
+}
+
 function generateCausalRelationships(
   variables: string[],
   problemContext: string,
@@ -133,33 +549,34 @@ function generateCausalRelationships(
   knownConstraints?: string,
   requiredCount?: number,
 ): CausalRelationship[] {
-  const relationships: CausalRelationship[] = [];
   const count = requiredCount ?? 5;
-  const parsedKnownLoops = knownFeedbackLoops
-    ? knownFeedbackLoops.split(",").map((s) => s.trim()).filter(Boolean)
-    : [];
 
-  const relationshipTemplates: Record<string, { polarity: CausalPolarity; type: "direct" | "indirect" | "moderated"; description: string }[]> = {};
+  // Step 1: Extract from problem text using causal language patterns
+  const fromText = extractRelationshipsFromText(problemContext, variables);
 
-  for (let i = 0; i < variables.length; i++) {
-    for (let j = 0; j < variables.length; j++) {
-      if (i === j) continue;
-      const key = `${variables[i]}→${variables[j]}`;
-      const polarity = determinePolarity(variables[i], variables[j], problemContext);
-      const relType = determineRelationshipType(variables[i], variables[j], parsedKnownLoops);
-      const description = generateRelationshipDescription(variables[i], variables[j], polarity, problemContext, knownConstraints);
+  // Step 2: Extract from known feedback loops
+  const fromKnownLoops = extractRelationshipsFromKnownLoops(knownFeedbackLoops, variables, problemContext);
 
-      relationships.push({
-        from: variables[i],
-        to: variables[j],
-        polarity,
-        type: relType,
-        description,
-      });
+  // Step 3: Match against CAUSAL_PATTERNS from patterns.ts
+  const fromPatterns = matchCausalPatterns(variables, problemContext);
+
+  // Merge with deduplication
+  const merged = new Map<string, CausalRelationship>();
+  for (const rel of [...fromKnownLoops, ...fromText, ...fromPatterns]) {
+    const key = `${rel.from}→${rel.to}`;
+    if (!merged.has(key)) {
+      merged.set(key, rel);
     }
   }
 
-  return relationships.slice(0, Math.min(count, relationships.length));
+  // Step 4: Fill gaps with semantic relationships
+  const existing = Array.from(merged.values());
+  const supplemented = generateSemanticRelationships(variables, problemContext, existing, count);
+
+  // Step 5: Ensure the graph has cycles for feedback loop detection
+  const withCycles = ensureGraphHasCycles(variables, supplemented, count, problemContext);
+
+  return withCycles.slice(0, Math.max(count, withCycles.length));
 }
 
 function determinePolarity(from: string, to: string, _context: string): CausalPolarity {
@@ -234,7 +651,11 @@ function detectFeedbackLoops(
     adjacencyMap.get(rel.from)!.push({ target: rel.to, polarity: rel.polarity });
   }
 
-  const visited = new Set<string>();
+  const seenLoopKeys = new Set<string>();
+  const relationshipMap = new Map<string, CausalPolarity>();
+  for (const rel of relationships) {
+    relationshipMap.set(`${rel.from}→${rel.to}`, rel.polarity);
+  }
 
   function findLoop(start: string, current: string, path: string[], polarities: CausalPolarity[]): void {
     if (path.length > variables.length) return;
@@ -246,16 +667,17 @@ function detectFeedbackLoops(
         const negativeCount = allPolarities.filter((p) => p === "-").length;
         const loopType: CausalLoopType = negativeCount % 2 === 0 ? "reinforcing" : "balancing";
 
-        const loopKey = [...path].sort().join("-");
-        if (!visited.has(loopKey)) {
-          visited.add(loopKey);
-          const loopName = generateLoopName(loopType, path, problemContext);
+        const loopKey = path.join("→");
+        if (!seenLoopKeys.has(loopKey)) {
+          seenLoopKeys.add(loopKey);
+          const loopName = generateLoopName(loopType, path, allPolarities, problemContext);
+          const loopId = `${loopType === "reinforcing" ? "R" : "B"}${loops.filter((l) => l.type === loopType).length + 1}`;
           loops.push({
-            id: `${loopType === "reinforcing" ? "R" : "B"}${loops.filter((l) => l.type === loopType).length + 1}`,
+            id: loopId,
             name: loopName,
             type: loopType,
             variables: [...path],
-            description: generateLoopDescription(loopType, path, allPolarities, problemContext),
+            description: generateLoopDescription(loopType, path, allPolarities, relationshipMap, problemContext),
           });
         }
       } else if (!path.includes(neighbor.target) && path.length < variables.length) {
@@ -266,45 +688,96 @@ function detectFeedbackLoops(
 
   for (const variable of variables) {
     findLoop(variable, variable, [variable], []);
-    if (loops.length >= requiredCount * 2) break;
+    if (loops.length >= requiredCount * 3) break;
+  }
+
+  const hasR = loops.some((l) => l.type === "reinforcing");
+  const hasB = loops.some((l) => l.type === "balancing");
+
+  if (hasR && hasB) {
+    const rLoops = loops.filter((l) => l.type === "reinforcing");
+    const bLoops = loops.filter((l) => l.type === "balancing");
+    const result = [rLoops[0], bLoops[0], ...loops.filter((l) => l !== rLoops[0] && l !== bLoops[0])];
+    return result.slice(0, requiredCount);
   }
 
   return loops.slice(0, requiredCount);
 }
 
-function generateLoopName(type: CausalLoopType, variables: string[], context: string): string {
+function generateLoopName(
+  type: CausalLoopType,
+  variables: string[],
+  polarities: CausalPolarity[],
+  context: string,
+): string {
   const contextLower = context.toLowerCase();
+  const varKeywords = variables.map((v) => v.toLowerCase());
+  const negativeCount = polarities.filter((p) => p === "-").length;
 
   if (type === "reinforcing") {
+    if (varKeywords.some((k) => k.includes("stress") || k.includes("burnout"))) return "Stress Amplification";
+    if (varKeywords.some((k) => k.includes("trust"))) return "Trust Accumulation";
+    if (varKeywords.some((k) => k.includes("innovation"))) return "Innovation Flywheel";
+    if (varKeywords.some((k) => k.includes("learning"))) return "Learning Acceleration";
+    if (varKeywords.some((k) => k.includes("motivation"))) return "Motivation Engine";
+    if (varKeywords.some((k) => k.includes("quality"))) return "Quality Compounder";
+    if (varKeywords.some((k) => k.includes("collaboration"))) return "Collaboration Multiplier";
+    if (varKeywords.some((k) => k.includes("morale"))) return "Morale Builder";
+
     if (contextLower.includes("growth") || contextLower.includes("expand")) return "Growth Engine";
     if (contextLower.includes("decline") || contextLower.includes("collapse")) return "Decline Spiral";
-    if (contextLower.includes("trust")) return "Trust Accumulation";
-    if (contextLower.includes("stress") || contextLower.includes("burnout")) return "Stress Amplification";
     if (contextLower.includes("success")) return "Success Momentum";
-    if (contextLower.includes("innovation")) return "Innovation Flywheel";
-    return "Virtuous Cycle";
+    if (contextLower.includes("fear") || contextLower.includes("anxiety")) return "Anxiety Spiral";
+    if (contextLower.includes("debt")) return "Debt Accumulation";
+    if (contextLower.includes("complexity")) return "Complexity Explosion";
+
+    if (negativeCount >= 2) return "Double-Negative Amplifier";
+    return "Self-Reinforcing Cycle";
   }
 
+  if (varKeywords.some((k) => k.includes("stress") || k.includes("burnout"))) return "Burnout Brake";
+  if (varKeywords.some((k) => k.includes("resource") || k.includes("capacity"))) return "Capacity Limiter";
+  if (varKeywords.some((k) => k.includes("quality"))) return "Quality Gatekeeper";
+  if (varKeywords.some((k) => k.includes("resistance"))) return "Resistance Dampener";
+  if (varKeywords.some((k) => k.includes("performance"))) return "Performance Regulator";
+  if (varKeywords.some((k) => k.includes("turnover"))) return "Turnover Stabilizer";
+
   if (contextLower.includes("balance") || contextLower.includes("equilibrium")) return "Equilibrium Seeker";
-  if (contextLower.includes("stress") || contextLower.includes("burnout")) return "Burnout Brake";
-  if (contextLower.includes("resource")) return "Resource Limiter";
-  if (contextLower.includes("quality")) return "Quality Gatekeeper";
-  return "Stabilizing Force";
+  if (contextLower.includes("limit") || contextLower.includes("constraint")) return "Constraint Enforcer";
+  if (contextLower.includes("saturat")) return "Saturation Brake";
+
+  return "Self-Correcting Loop";
 }
 
 function generateLoopDescription(
   type: CausalLoopType,
   variables: string[],
-  _polarities: CausalPolarity[],
+  polarities: CausalPolarity[],
+  relationshipMap: Map<string, CausalPolarity>,
   _context: string,
 ): string {
-  const varList = variables.map((v) => v.toLowerCase()).join(" → ");
+  const varChain = variables.map((v, i) => {
+    const next = variables[(i + 1) % variables.length];
+    const key = `${v}→${next}`;
+    const pol = relationshipMap.get(key) || polarities[i] || "+";
+    const polSymbol = pol === "+" ? "(+)" : "(-)";
+    return `${v.toLowerCase()} ${polSymbol}`;
+  }).join(" → ");
+
+  const negativeCount = polarities.filter((p) => p === "-").length;
+  const primaryVar = variables[0]?.toLowerCase() ?? "the system";
 
   if (type === "reinforcing") {
-    return `This reinforcing loop creates self-amplifying dynamics: changes in ${varList} feed back to magnify the initial change. Each cycle through the loop compounds the effect, leading to exponential growth or accelerating decline depending on the initial direction. Left unchecked, this loop will drive the system toward an extreme state.`;
+    let description = `This reinforcing loop (${variables.length} variables, ${negativeCount} negative link${negativeCount !== 1 ? "s" : ""}) creates self-amplifying dynamics through the chain: ${varChain}. `;
+    description += `A change in ${primaryVar} propagates through the loop and returns amplified, creating exponential growth or accelerating decline. `;
+    description += `With ${negativeCount === 0 ? "all positive links reinforcing the same direction" : `${negativeCount} negative link(s) that, in even combination, still produce amplification`}, this loop will drive the system toward an extreme state if left unchecked.`;
+    return description;
   }
 
-  return `This balancing loop creates self-correcting dynamics: as ${varList} shifts, the loop generates counter-pressure that resists further change in the same direction. This loop acts as the system's thermostat, maintaining stability by opposing deviations from a target state. It is the primary source of resistance to change interventions.`;
+  let description = `This balancing loop (${variables.length} variables, ${negativeCount} odd negative link${negativeCount !== 1 ? "s" : ""}) creates self-correcting dynamics through the chain: ${varChain}. `;
+  description += `As ${primaryVar} shifts, the odd number of negative links (${negativeCount}) generates counter-pressure that opposes further change. `;
+  description += `This loop acts as the system's thermostat, maintaining stability by pushing back against deviations from equilibrium. It is the primary source of resistance to change interventions.`;
+  return description;
 }
 
 function generateLeveragePoints(
@@ -329,11 +802,24 @@ function generateLeveragePoints(
   ];
 
   const leveragePoints: LeveragePoint[] = [];
+  const contextLower = problemContext.toLowerCase();
 
   for (const category of allCategories) {
     const lp = LEVERAGE_POINTS[category];
-    const intervention = generateIntervention(category, variables, loops, problemContext);
-    const impact = generateImpactDescription(category, variables, problemContext);
+    const matchingPatterns = LEVERAGE_PATTERNS.filter((p) => {
+      const rankMatch = Math.abs(p.meadows_rank - lp.rank) <= 2;
+      const domainMatch = p.applies_when.some((condition) =>
+        contextLower.includes(condition.toLowerCase().split(" ")[0]),
+      );
+      return rankMatch || domainMatch;
+    });
+
+    const patternContext = matchingPatterns.length > 0
+      ? ` Relevant patterns detected: ${matchingPatterns.slice(0, 2).map((p) => p.description).join("; ")}.`
+      : "";
+
+    const intervention = generateIntervention(category, variables, loops, problemContext) + patternContext;
+    const impact = generateImpactDescription(category, variables, problemContext, matchingPatterns);
 
     leveragePoints.push({
       rank: lp.rank,
@@ -378,17 +864,21 @@ function generateImpactDescription(
   category: LeveragePointCategory,
   variables: string[],
   _context: string,
+  matchingPatterns?: typeof LEVERAGE_PATTERNS,
 ): string {
   const lp = LEVERAGE_POINTS[category];
   const actionability = lp.actionability;
+  const patternNote = matchingPatterns && matchingPatterns.length > 0
+    ? ` Supported by ${matchingPatterns.length} matching leverage pattern(s).`
+    : "";
 
   if (lp.rank <= 4) {
-    return `Transformative — changes the fundamental nature of the system. High difficulty to implement, requires deep structural or cultural shift. Effects cascade through all ${variables.length} identified variables.`;
+    return `Transformative — changes the fundamental nature of the system. High difficulty to implement, requires deep structural or cultural shift. Effects cascade through all ${variables.length} identified variables.${patternNote}`;
   }
   if (lp.rank <= 7) {
-    return `Significant — alters the dynamics of key feedback loops. Moderate difficulty, requires changes to information architecture or loop structure. Most effective when combined with goal-level interventions.`;
+    return `Significant — alters the dynamics of key feedback loops. Moderate difficulty, requires changes to information architecture or loop structure. Most effective when combined with goal-level interventions.${patternNote}`;
   }
-  return `Incremental — produces measurable but limited change. ${actionability === "high" ? "Relatively easy to implement" : "Moderate implementation difficulty"}, but effects are often temporary if higher-leverage points are not also addressed.`;
+  return `Incremental — produces measurable but limited change. ${actionability === "high" ? "Relatively easy to implement" : "Moderate implementation difficulty"}, but effects are often temporary if higher-leverage points are not also addressed.${patternNote}`;
 }
 
 function detectArchetypes(
@@ -398,8 +888,6 @@ function detectArchetypes(
   problemContext: string,
 ): ArchetypeDetection[] {
   const detections: ArchetypeDetection[] = [];
-  const reinforcingLoops = loops.filter((l) => l.type === "reinforcing");
-  const balancingLoops = loops.filter((l) => l.type === "balancing");
 
   for (const [archetypeKey, archetype] of Object.entries(SYSTEMS_ARCHETYPES)) {
     const key = archetypeKey as SystemsArchetype;
@@ -409,7 +897,13 @@ function detectArchetypes(
     }
   }
 
-  return detections.sort((a, b) => b.evidence.length - a.evidence.length).slice(0, 3);
+  // Sort: strong matches first (by evidence length), then partials (by confidence)
+  const strong = detections.filter(d => !d.isPartial);
+  const partials = detections.filter(d => d.isPartial);
+  strong.sort((a, b) => b.evidence.length - a.evidence.length);
+  partials.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+
+  return [...strong.slice(0, 3), ...partials.slice(0, 2)];
 }
 
 function evaluateArchetypeMatch(
@@ -424,132 +918,294 @@ function evaluateArchetypeMatch(
   const reinforcingLoops = loops.filter((l) => l.type === "reinforcing");
   const balancingLoops = loops.filter((l) => l.type === "balancing");
 
-  let evidence = "";
-  let confidence = 0;
+  // Structural loop topology analysis
+  const structuralScore = analyzeArchetypeStructure(key, variables, loops, relationships);
 
+  let evidence = structuralScore.evidence;
+  let confidence = structuralScore.confidence;
+
+  // Context keyword scoring (supplements structural analysis)
   switch (key) {
     case "fixes-that-fail":
-      if (balancingLoops.length >= 1 && reinforcingLoops.length >= 1) {
-        confidence += 30;
-        evidence = `System exhibits both balancing loops (${balancingLoops.map((l) => l.name).join(", ")}) and reinforcing loops (${reinforcingLoops.map((l) => l.name).join(", ")}), consistent with the B-R-B structure of fixes-that-fail.`;
-      }
-      if (contextLower.includes("quick fix") || contextLower.includes("short-term") || contextLower.includes("temporary")) {
-        confidence += 30;
+      if (contextLower.includes("quick fix") || contextLower.includes("short-term") || contextLower.includes("temporary") || contextLower.includes("band-aid") || contextLower.includes("patch")) {
+        confidence += 20;
         evidence += ` Problem context references short-term solutions or quick fixes.`;
       }
       break;
 
     case "shifting-the-burden":
-      if (balancingLoops.length >= 2) {
-        confidence += 25;
-        evidence = `Multiple balancing loops detected (${balancingLoops.length}), suggesting dependency on symptomatic solutions.`;
-      }
-      if (contextLower.includes("dependency") || contextLower.includes("external") || contextLower.includes("support")) {
-        confidence += 25;
+      if (contextLower.includes("dependency") || contextLower.includes("external") || contextLower.includes("support") || contextLower.includes("crutch") || contextLower.includes("workaround")) {
+        confidence += 15;
         evidence += ` Context suggests reliance on external support or symptomatic interventions.`;
       }
       break;
 
     case "limits-to-growth":
-      if (reinforcingLoops.length >= 1 && balancingLoops.length >= 1) {
-        confidence += 30;
-        evidence = `Presence of both growth-driving reinforcing loop(s) and limiting balancing loop(s) matches the R-B structure.`;
-      }
-      if (contextLower.includes("growth") || contextLower.includes("limit") || contextLower.includes("constraint") || contextLower.includes("plateau")) {
-        confidence += 30;
+      if (contextLower.includes("growth") || contextLower.includes("limit") || contextLower.includes("constraint") || contextLower.includes("plateau") || contextLower.includes("ceiling") || contextLower.includes("cap")) {
+        confidence += 20;
         evidence += ` Context explicitly mentions growth, limits, or constraints.`;
       }
       break;
 
     case "tragedy-of-the-commons":
-      if (reinforcingLoops.length >= 2) {
-        confidence += 25;
-        evidence = `Multiple reinforcing loops suggest individual actors independently optimizing their own gains.`;
-      }
-      if (contextLower.includes("shared") || contextLower.includes("common") || contextLower.includes("resource") || contextLower.includes("compete")) {
-        confidence += 30;
+      if (contextLower.includes("shared") || contextLower.includes("common") || contextLower.includes("resource") || contextLower.includes("compete") || contextLower.includes("overuse") || contextLower.includes("depletion")) {
+        confidence += 20;
         evidence += ` Context involves shared resources or competition among actors.`;
       }
       break;
 
     case "escalation":
-      if (reinforcingLoops.length >= 2) {
-        confidence += 35;
-        evidence = `Two or more reinforcing loops create the R-R structure characteristic of mutual escalation.`;
-      }
-      if (contextLower.includes("competition") || contextLower.includes("rival") || contextLower.includes("arms race") || contextLower.includes("escalat")) {
-        confidence += 30;
+      if (contextLower.includes("competition") || contextLower.includes("rival") || contextLower.includes("arms race") || contextLower.includes("escalat") || contextLower.includes("tit-for-tat") || contextLower.includes("retaliate")) {
+        confidence += 20;
         evidence += ` Context explicitly describes competitive or adversarial dynamics.`;
       }
       break;
 
     case "success-to-the-successful":
-      if (reinforcingLoops.length >= 2) {
-        confidence += 30;
-        evidence = `Multiple reinforcing loops with resource competition create winner-take-all dynamics.`;
-      }
-      if (contextLower.includes("resource") || contextLower.includes("allocation") || contextLower.includes("winner") || contextLower.includes("unequal")) {
-        confidence += 25;
+      if (contextLower.includes("resource") || contextLower.includes("allocation") || contextLower.includes("winner") || contextLower.includes("unequal") || contextLower.includes("rich get richer") || contextLower.includes("advantage")) {
+        confidence += 15;
         evidence += ` Context involves resource allocation or unequal outcomes.`;
       }
       break;
 
     case "drift-to-low-performance":
-      if (balancingLoops.length >= 1) {
-        confidence += 25;
-        evidence = `Balancing loop structure consistent with gradual standard erosion.`;
-      }
-      if (contextLower.includes("decline") || contextLower.includes("drift") || contextLower.includes("standard") || contextLower.includes("mediocre")) {
-        confidence += 30;
+      if (contextLower.includes("decline") || contextLower.includes("drift") || contextLower.includes("standard") || contextLower.includes("mediocre") || contextLower.includes("lowering bar") || contextLower.includes("accepting less")) {
+        confidence += 20;
         evidence += ` Context suggests gradual decline or lowering of standards.`;
       }
       break;
 
     case "growth-and-underinvestment":
-      if (reinforcingLoops.length >= 1 && balancingLoops.length >= 1) {
-        confidence += 25;
-        evidence = `Growth loop paired with balancing loop suggests capacity constraints.`;
-      }
-      if (contextLower.includes("investment") || contextLower.includes("capacity") || contextLower.includes("infrastructure") || contextLower.includes("underinvest")) {
-        confidence += 30;
+      if (contextLower.includes("investment") || contextLower.includes("capacity") || contextLower.includes("infrastructure") || contextLower.includes("underinvest") || contextLower.includes("not enough resources")) {
+        confidence += 20;
         evidence += ` Context references investment, capacity, or infrastructure concerns.`;
       }
       break;
 
     case "accidental-adversaries":
-      if (reinforcingLoops.length >= 2) {
-        confidence += 25;
-        evidence = `Multiple reinforcing loops suggest unintended adversarial dynamics between cooperative parties.`;
-      }
-      if (contextLower.includes("partner") || contextLower.includes("cooperat") || contextLower.includes("alliance") || contextLower.includes("misunderstand")) {
-        confidence += 30;
+      if (contextLower.includes("partner") || contextLower.includes("cooperat") || contextLower.includes("alliance") || contextLower.includes("misunderstand") || contextLower.includes("unintended conflict")) {
+        confidence += 20;
         evidence += ` Context involves partnerships or cooperative relationships with emerging friction.`;
       }
       break;
 
     case "attractiveness":
-      if (reinforcingLoops.length >= 2) {
-        confidence += 25;
-        evidence = `Multiple growth processes competing for limited resources matches the attractiveness structure.`;
-      }
-      if (contextLower.includes("multiple") || contextLower.includes("option") || contextLower.includes("attract") || contextLower.includes("spread thin")) {
-        confidence += 25;
+      if (contextLower.includes("multiple") || contextLower.includes("option") || contextLower.includes("attract") || contextLower.includes("spread thin") || contextLower.includes("competing priorities")) {
+        confidence += 15;
         evidence += ` Context suggests multiple competing initiatives or options.`;
       }
       break;
   }
 
-  if (confidence >= 40) {
+  if (confidence >= 10) {
     return {
       archetype: key,
       name: archetype.name,
       structure: archetype.structure,
       evidence: evidence.trim(),
       intervention_strategy: archetype.intervention_strategy,
+      confidence,
+      isPartial: confidence < 20,
     };
   }
 
   return null;
+}
+
+/**
+ * Analyzes loop topology and variable structure to detect archetype patterns.
+ * Returns confidence score and evidence based on structural analysis.
+ */
+function analyzeArchetypeStructure(
+  key: SystemsArchetype,
+  variables: string[],
+  loops: FeedbackLoop[],
+  relationships: CausalRelationship[],
+): { confidence: number; evidence: string } {
+  const reinforcingLoops = loops.filter((l) => l.type === "reinforcing");
+  const balancingLoops = loops.filter((l) => l.type === "balancing");
+  const allLoops = loops;
+
+  const sharedVars = (a: FeedbackLoop, b: FeedbackLoop): string[] =>
+    a.variables.filter((v) => b.variables.includes(v));
+
+  const loopHasKeyword = (loop: FeedbackLoop, keywords: string[]): boolean =>
+    keywords.some((kw) => loop.variables.some((v) => v.toLowerCase().includes(kw)));
+
+  const negativeRelCount = relationships.filter((r) => r.polarity === "-").length;
+
+  switch (key) {
+    case "fixes-that-fail": {
+      // Structure: B loop (symptomatic fix) + R loop (unintended consequence worsening problem)
+      // Key: B loop shares a "problem/symptom" variable with R loop
+      if (balancingLoops.length >= 1 && reinforcingLoops.length >= 1) {
+        const bLoop = balancingLoops[0];
+        const rLoop = reinforcingLoops[0];
+        const shared = sharedVars(bLoop, rLoop);
+        if (shared.length > 0) {
+          return {
+            confidence: 35,
+            evidence: `Structural match: balancing loop "${bLoop.name}" and reinforcing loop "${rLoop.name}" share variable(s) "${shared.join(", ")}" — consistent with fixes-that-fail where a symptomatic fix (B) shares the problem variable with an unintended consequence loop (R).`,
+          };
+        }
+        return {
+          confidence: 15,
+          evidence: `Partial structural match: both balancing (${balancingLoops.length}) and reinforcing (${reinforcingLoops.length}) loops present, but no shared variables detected between primary loops.`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "shifting-the-burden": {
+      // Structure: 2+ B loops (symptomatic + fundamental) where symptomatic undermines fundamental
+      if (balancingLoops.length >= 2) {
+        const hasShared = balancingLoops.some((a, i) =>
+          balancingLoops.slice(i + 1).some((b) => sharedVars(a, b).length > 0),
+        );
+        const underminingEvidence = negativeRelCount >= 2;
+        const conf = hasShared ? 30 : 15;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${balancingLoops.length} balancing loops detected${hasShared ? " with shared variables between them" : ""}${underminingEvidence ? " and negative causal links suggesting undermining dynamics" : ""}. Consistent with shifting-the-burden where symptomatic and fundamental solutions compete.${hasShared ? "" : " (partial — no shared variables between balancing loops)"}`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "limits-to-growth": {
+      // Structure: R loop (growth) + B loop (constraint/limit)
+      if (reinforcingLoops.length >= 1 && balancingLoops.length >= 1) {
+        const growthVars = variables.filter((v) =>
+          /growth|increase|expand|accelerate|compound|momentum|scale/i.test(v),
+        );
+        const limitVars = variables.filter((v) =>
+          /limit|constraint|cap|ceiling|resource|capacity|bottleneck|saturation/i.test(v),
+        );
+        const hasGrowthVar = growthVars.length > 0;
+        const hasLimitVar = limitVars.length > 0;
+        const conf = (hasGrowthVar && hasLimitVar) ? 40 : hasGrowthVar ? 25 : hasLimitVar ? 25 : 15;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${reinforcingLoops.length} reinforcing loop(s) driving growth + ${balancingLoops.length} balancing loop(s) imposing limits.${hasGrowthVar ? ` Growth variable(s): ${growthVars.join(", ")}.` : ""}${hasLimitVar ? ` Limit variable(s): ${limitVars.join(", ")}.` : ""}${!hasGrowthVar && !hasLimitVar ? " No explicit growth/limit variables detected — partial match based on loop structure only." : ""}`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "tragedy-of-the-commons": {
+      // Structure: 2+ R loops (individual actors) sharing a resource variable, with eventual B loop
+      if (reinforcingLoops.length >= 2) {
+        const resourceVars = variables.filter((v) =>
+          /resource|common|shared|pool|stock|capacity|environment/i.test(v),
+        );
+        const sharesResource = reinforcingLoops.some((loop) =>
+          resourceVars.some((rv) => loop.variables.includes(rv)),
+        );
+        const conf = sharesResource ? 35 : reinforcingLoops.length >= 3 ? 20 : 12;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${reinforcingLoops.length} reinforcing loops (individual gain dynamics)${sharesResource ? ` sharing resource variable(s): ${resourceVars.join(", ")}` : ""}${balancingLoops.length > 0 ? ` with ${balancingLoops.length} balancing loop(s) suggesting eventual resource constraint` : ""}.`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "escalation": {
+      // Structure: 2+ R loops where each loop's output feeds the other loop's input (mutual reinforcement)
+      if (reinforcingLoops.length >= 2) {
+        const mutualOverlap = reinforcingLoops[0].variables.some((v) =>
+          reinforcingLoops[1].variables.includes(v),
+        );
+        const opposingPolarity = relationships.some((r) =>
+          reinforcingLoops[0].variables.includes(r.from) &&
+          reinforcingLoops[1].variables.includes(r.to) &&
+          r.polarity === "-",
+        );
+        const conf = mutualOverlap ? 40 : opposingPolarity ? 30 : 15;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${reinforcingLoops.length} reinforcing loops${mutualOverlap ? " with overlapping variables suggesting mutual influence" : ""}${opposingPolarity ? " and opposing causal links suggesting adversarial dynamics" : ""}. Consistent with escalation pattern.${!mutualOverlap && !opposingPolarity ? " (partial — no direct mutual influence detected between loops)" : ""}`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "success-to-the-successful": {
+      // Structure: 2+ R loops competing for a shared resource, where early success in one loop starves the other
+      if (reinforcingLoops.length >= 2) {
+        const competingResource = allLoops.length >= 3;
+        const conf = competingResource ? 25 : 15;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${reinforcingLoops.length} reinforcing loops${competingResource ? " competing within a system that also contains balancing loops (resource competition)" : ""}. ${competingResource ? "Balancing loops create the resource constraint that produces winner-take-all dynamics." : "Partial — no balancing loops detected to enforce resource competition."}`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "drift-to-low-performance": {
+      // Structure: B loop where the goal/standard variable gradually erodes (implicit in single B loop with low pressure)
+      if (balancingLoops.length >= 1) {
+        const hasPerformanceVar = variables.some((v) =>
+          /performance|standard|quality|goal|target|expectation|benchmark/i.test(v),
+        );
+        const hasDeclineVar = variables.some((v) =>
+          /decline|drift|erosion|degrade|worsen|slip|slide|compromise/i.test(v),
+        );
+        const conf = (hasPerformanceVar && hasDeclineVar) ? 30 : hasPerformanceVar ? 18 : 12;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${balancingLoops.length} balancing loop(s) with self-correcting dynamics.${hasPerformanceVar ? " Performance/standard variable detected." : ""}${hasDeclineVar ? " Decline/erosion variable detected." : ""} ${hasPerformanceVar && hasDeclineVar ? "Consistent with drift-to-low-performance where the standard gradually adapts downward." : "Partial match — missing explicit performance or decline variables."}`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "growth-and-underinvestment": {
+      // Structure: R loop (growth) + B loop (capacity constraint) + potential investment B loop
+      if (reinforcingLoops.length >= 1 && balancingLoops.length >= 1) {
+        const hasCapacityVar = variables.some((v) =>
+          /capacity|investment|infrastructure|resource|capability|fund|budget/i.test(v),
+        );
+        const hasGrowthVar = variables.some((v) =>
+          /growth|demand|pressure|load|throughput|scale/i.test(v),
+        );
+        const conf = (hasCapacityVar && hasGrowthVar) ? 35 : hasCapacityVar ? 20 : hasGrowthVar ? 20 : 12;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${reinforcingLoops.length} growth-driving loop(s) + ${balancingLoops.length} limiting loop(s).${hasCapacityVar ? " Capacity/investment variable detected — suggests underinvestment dynamic." : ""}${hasGrowthVar ? " Growth/pressure variable detected." : ""} ${hasCapacityVar && hasGrowthVar ? "Consistent with growth-and-underinvestment where capacity constraints limit growth that could be resolved through investment." : "Partial match."}`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "accidental-adversaries": {
+      // Structure: 2+ R loops where parties are trying to cooperate but their actions inadvertently conflict
+      if (reinforcingLoops.length >= 2) {
+        const sharedBetweenR = sharedVars(reinforcingLoops[0], reinforcingLoops[1]);
+        const conf = sharedBetweenR.length > 0 ? 25 : 12;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${reinforcingLoops.length} reinforcing loops${sharedBetweenR.length > 0 ? ` sharing variables: ${sharedBetweenR.join(", ")}` : ""}. Consistent with accidental-adversaries where cooperative parties' actions create unintended mutual interference.${sharedBetweenR.length === 0 ? " (partial — no shared variables between reinforcing loops)" : ""}`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+
+    case "attractiveness": {
+      // Structure: 2+ R loops competing for limited resources (similar to tragedy-of-commons but without commons depletion)
+      if (reinforcingLoops.length >= 2) {
+        const conf = allLoops.length >= 3 ? 20 : 10;
+        return {
+          confidence: conf,
+          evidence: `Structural match: ${reinforcingLoops.length} reinforcing loops (growth processes) in a system with ${allLoops.length} total loops.${allLoops.length >= 3 ? " Additional balancing loops suggest resource competition between growth processes." : " Partial — no balancing loops detected to enforce resource limits."}`,
+        };
+      }
+      return { confidence: 0, evidence: "" };
+    }
+  }
+
+  return { confidence: 0, evidence: "" };
 }
 
 function generateOutput(
@@ -563,6 +1219,27 @@ function generateOutput(
   suggestedFollowup: SuggestedTool[],
   outputMode: OutputMode,
 ): string {
+  const fullText = `${problemStatement} ${variables.join(" ")}`;
+
+  const composeSection = (stepNumber: number, totalSteps: number, thoughtType: ThoughtType, previousOutputs: string[]): string => {
+    return composeToolContent({
+      toolName: "think_causal",
+      text: fullText,
+      initialPosition: problemStatement,
+      mode: "analytical",
+      subMode: "deductive",
+      stepNumber,
+      totalSteps,
+      thoughtType,
+      previousOutputs,
+    });
+  };
+
+  const composerAttempt = composeSection(0, 5, "deconstructive", []);
+  if (composerAttempt.length >= 50 && outputMode === "executive") {
+    return enforceLimit(`## Causal Loop Analysis: ${problemStatement.substring(0, 80)}\n\n${composerAttempt}\n\n**Epistemic Status:** ${epistemicStatus}\n**Suggested Follow-up:** ${suggestedFollowup.join(", ")}`);
+  }
+
   const sections: string[] = [];
   const truncatedProblem = problemStatement.length > 80 ? problemStatement.substring(0, 77) + "..." : problemStatement;
 
@@ -577,6 +1254,10 @@ function generateOutput(
       `The highest-leverage intervention points are at ranks ${leveragePoints.slice(0, 3).map((lp) => lp.rank).join(", ")}.`
     );
     sections.push("");
+    sections.push("### Meta-Analysis\n");
+    sections.push(`**Epistemic Status:** ${epistemicStatus}`);
+    sections.push(`**Suggested Follow-up:** ${suggestedFollowup.join(", ")}`);
+    return enforceLimit(sections.join("\n\n"));
   }
 
   sections.push("### Variables\n");
@@ -599,7 +1280,6 @@ function generateOutput(
 
   sections.push("### Feedback Loops\n");
   for (const loop of loops) {
-    const tag = loop.type === "reinforcing" ? "R" : "B";
     sections.push(
       `**${loop.id} — ${loop.name}:** ${loop.description} Variables involved: ${loop.variables.join(" → ")}.`,
     );
@@ -618,15 +1298,31 @@ function generateOutput(
   sections.push("");
 
   sections.push("### Systems Archetype Detection\n");
-  if (archetypes.length === 0) {
-    sections.push("No strong archetype matches detected with current confidence threshold. This may indicate a novel system structure or insufficient relationship data for archetype pattern matching.");
+  const strongArchetypes = archetypes.filter(a => !a.isPartial);
+  const partialArchetypes = archetypes.filter(a => a.isPartial);
+
+  if (strongArchetypes.length === 0 && partialArchetypes.length === 0) {
+    sections.push("No archetype matches detected. This may indicate a novel system structure or insufficient relationship data for archetype pattern matching.");
   } else {
-    for (const detection of archetypes) {
-      sections.push(`#### ${detection.name} (${detection.archetype})`);
-      sections.push(`**Structure:** ${detection.structure}`);
-      sections.push(`**Evidence:** ${detection.evidence}`);
-      sections.push(`**Intervention Strategy:** ${detection.intervention_strategy}`);
+    if (strongArchetypes.length > 0) {
+      for (const detection of strongArchetypes) {
+        sections.push(`#### ${detection.name} (${detection.archetype})`);
+        sections.push(`**Structure:** ${detection.structure}`);
+        sections.push(`**Evidence:** ${detection.evidence}`);
+        sections.push(`**Intervention Strategy:** ${detection.intervention_strategy}`);
+        sections.push("");
+      }
+    }
+
+    if (partialArchetypes.length > 0) {
+      sections.push("#### Partial Matches (Below Confidence Threshold)");
+      sections.push("The following archetypes showed structural similarities below the primary confidence threshold (15-24) and may warrant further investigation:");
       sections.push("");
+      for (const detection of partialArchetypes) {
+        sections.push(`- **${detection.name}** (${detection.archetype}) — Confidence: ${detection.confidence}%`);
+        sections.push(`  ${detection.evidence}`);
+        sections.push("");
+      }
     }
   }
 
@@ -757,8 +1453,11 @@ export function registerTool(server: McpServer): void {
         const relCount = depthToRelationshipCount(output_depth);
         const loopCount = depthToLoopCount(output_depth);
 
+        // Ensure minimum 4 variables for meaningful cycle detection
+        const enrichedVariables = supplementVariables(key_variables, problem_statement, 4);
+
         const relationships = generateCausalRelationships(
-          key_variables,
+          enrichedVariables,
           problem_statement,
           known_feedback_loops,
           known_constraints,
@@ -766,21 +1465,21 @@ export function registerTool(server: McpServer): void {
         );
 
         const loops = detectFeedbackLoops(
-          key_variables,
+          enrichedVariables,
           relationships,
           loopCount,
           problem_statement,
         );
 
         const leveragePoints = generateLeveragePoints(
-          key_variables,
+          enrichedVariables,
           loops,
           problem_statement,
           output_depth,
         );
 
         const archetypes = detectArchetypes(
-          key_variables,
+          enrichedVariables,
           relationships,
           loops,
           problem_statement,
@@ -791,7 +1490,7 @@ export function registerTool(server: McpServer): void {
 
         const output = generateOutput(
           problem_statement,
-          key_variables,
+          enrichedVariables,
           relationships,
           loops,
           leveragePoints,
