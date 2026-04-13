@@ -1,6 +1,5 @@
 import assert from "node:assert";
 import { classifyDomain, getPrimaryDomain } from "../utils/domain-classifier.js";
-import { DOMAINS } from "../constants/domains.js";
 
 let passed = 0;
 let failed = 0;

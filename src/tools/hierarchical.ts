@@ -240,7 +240,11 @@ export function registerTool(server: McpServer): void {
     {
       title: "Hierarchical Complexity / Developmental Stage Map",
       description:
-        "Maps a system's developmental trajectory across stages using the 'transcend and include' principle. Shows how each stage manifests across all 4 quadrants (Intentional, Behavioral, Cultural, Social). Creates a navigational map showing where the system is, what the next stage looks like, and what capacities need development.",
+        "Generates a developmental stage analysis mapping a system across stages following the 'transcend and include' principle. " +
+        "Output shows how each stage manifests across all 4 quadrants (Intentional, Behavioral, Cultural, Social). " +
+        "Produces a structured developmental map indicating where the system currently sits, what characteristics the next stage " +
+        "exhibits, and which capacities would need development. The output follows a template-based framework organized by " +
+        "developmental stage × quadrant matrix.",
       inputSchema: z.object({
         system: z.string().describe("The system being analyzed (e.g., individual, team, organization, culture)"),
         current_stage: z.enum(["archaic", "magic", "magic-mythic", "mythic", "modern-rational", "postmodern", "integral", "super-integral"]).describe("The current developmental stage of the system"),

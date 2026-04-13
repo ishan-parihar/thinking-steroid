@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import type { SequentialStep, OutputDepth, ThinkingMode, ReasoningSubMode, EpistemicStatus, SuggestedTool, OutputMode, ThoughtType } from "../types.js";
+import type { SequentialStep, OutputDepth, ThinkingMode, ReasoningSubMode, EpistemicStatus, SuggestedTool, ThoughtType } from "../types.js";
 import { formatSequentialThinking } from "../utils/formatters.js";
 import { composeToolContent, getStructureForText } from "../utils/content-pipeline.js";
 
@@ -57,8 +57,8 @@ function generateSteps(params: {
         "Identify second-order implications and emergent properties of the analysis.",
         "Formulate a final assessment with explicit confidence bounds and remaining uncertainties.",
       ],
-      confidenceBase: 0.72,
-      decaySlope: 0.065,
+      confidenceBase: 0.70,
+      decaySlope: 0.070,
     },
     creative: {
       stepPhases: [
@@ -70,8 +70,8 @@ function generateSteps(params: {
         "Refine the most promising alternatives through iterative conceptual prototyping.",
         "Integrate creative insights back into the original problem structure for a enriched perspective.",
       ],
-      confidenceBase: 0.55,
-      decaySlope: 0.075,
+      confidenceBase: 0.48,
+      decaySlope: 0.082,
     },
     critical: {
       stepPhases: [
@@ -83,8 +83,8 @@ function generateSteps(params: {
         "Examine the ideological or motivational factors that may bias the analysis.",
         "Render a verdict on the position's validity with explicit acknowledgment of residual doubt.",
       ],
-      confidenceBase: 0.65,
-      decaySlope: 0.06,
+      confidenceBase: 0.62,
+      decaySlope: 0.066,
     },
     strategic: {
       stepPhases: [
@@ -96,8 +96,8 @@ function generateSteps(params: {
         "Design a phased implementation plan with decision points and contingency triggers.",
         "Establish metrics for strategic success and mechanisms for course correction.",
       ],
-      confidenceBase: 0.58,
-      decaySlope: 0.072,
+      confidenceBase: 0.55,
+      decaySlope: 0.078,
     },
   };
 
@@ -416,7 +416,7 @@ function generateAssumptions(step: number, mode: ThinkingMode, reasoningSubMode:
   return stepAssumptions;
 }
 
-function generateCounterArgument(step: number, mode: ThinkingMode, reasoningSubMode: ReasoningSubMode, problem: string, counterPerspective?: string): string {
+function generateCounterArgument(step: number, mode: ThinkingMode, reasoningSubMode: ReasoningSubMode, _problem: string, counterPerspective?: string): string {
   if (counterPerspective && step === 0) {
     return `Counter-perspective: ${counterPerspective}. This lens challenges the initial framing and demands that all subsequent analysis account for this alternative viewpoint.`;
   }
@@ -522,7 +522,7 @@ function generateNextInvestigation(step: number, _totalSteps: number, mode: Thin
   return `${base} ${subModeInvestigation[reasoningSubMode]}`;
 }
 
-function generateConfidenceJustification(step: number, mode: ThinkingMode, confidence: number, phaseDescription: string, reasoningSubMode: ReasoningSubMode): string {
+function generateConfidenceJustification(_step: number, mode: ThinkingMode, confidence: number, phaseDescription: string, _reasoningSubMode: ReasoningSubMode): string {
   const confidenceLevel = confidence >= 0.75 ? "relatively high" : confidence >= 0.60 ? "moderate" : confidence >= 0.45 ? "low-moderate" : "low";
   
   const reasonHigher = "Could be higher with additional empirical data or domain-specific pattern matches.";
@@ -562,16 +562,16 @@ export function registerTool(server: McpServer): void {
     {
       title: "Sequential Thinking Analysis",
       description:
-        "Performs structured sequential thinking analysis on a problem by generating a step-by-step reasoning audit trail. " +
+        "Generates a structured sequential reasoning analysis on a problem, producing a step-by-step reasoning audit trail. " +
         "Each step includes a claim, detailed reasoning, confidence level, underlying assumptions, a steel-manned counter-argument, " +
-        "and a concrete next investigation target. This creates a transparent, auditable chain of reasoning that reveals not just " +
-        "conclusions but the epistemic structure behind them.\n\n" +
+        "and a concrete next investigation target. The output follows a template-based framework that structures reasoning into " +
+        "an auditable chain, making the logical structure of arguments explicit.\n\n" +
         "The analysis depth controls the number of reasoning steps: 'essential' produces 3 steps for quick assessment, " +
         "'standard' produces 5 steps for thorough analysis, and 'exhaustive' produces 7 steps for comprehensive examination.\n\n" +
         "Four thinking modes are available: 'analytical' for decomposition and causal mapping, 'creative' for reframing and " +
         "lateral thinking, 'critical' for steel-manning counter-arguments and testing epistemic foundations, and 'strategic' " +
         "for option generation, stakeholder analysis, and implementation planning.\n\n" +
-        "Use this tool when you need to make your reasoning process explicit, auditable, and open to constructive challenge. " +
+        "Use this tool when you need to structure your reasoning process into explicit, auditable steps. " +
         "It is especially valuable for complex decisions, controversial positions, or situations where the reasoning process " +
         "itself needs to be communicated and defended.",
       inputSchema: z

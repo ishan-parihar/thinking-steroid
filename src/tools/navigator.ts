@@ -584,9 +584,9 @@ export function registerTool(server: McpServer): void {
     {
       title: "Reasoning DAG Navigator",
       description:
-        "Orchestrates multi-step reasoning by planning which thinking tools to apply, in what order, " +
-        "with dependency tracking and parallel execution hints. Creates a reasoning DAG (Directed Acyclic Graph) " +
-        "that maps the optimal sequence of thinking tools for a given problem.\n\n" +
+        "Generates a structured reasoning plan by sequencing thinking tools with dependency tracking and " +
+        "parallel execution hints. Output produces a reasoning DAG (Directed Acyclic Graph) mapping a " +
+        "recommended sequence of thinking tools for a given problem.\n\n" +
         "Use 'plan' action to create a new reasoning plan, 'advance' to mark a node complete and get next steps, " +
         "'replan' when the current path isn't working, and 'terminate' to get a synthesis of all completed nodes.\n\n" +
         "Supports three planning depths: full (8 nodes covering all thought types), guided (3-4 nodes for immediate needs), " +

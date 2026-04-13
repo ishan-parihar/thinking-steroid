@@ -71,7 +71,6 @@ function generatePolarityAnalysis(
     pole_b,
     domain,
     current_position,
-    evidence_for_position,
     desired_outcome,
   } = input;
   const config = DEPTH_CONFIGS[input.output_depth];
@@ -183,7 +182,7 @@ function generateRewardsOfFocus(
 function generateOveremphasisFeedback(
   pole: string,
   domain: string,
-  side: "a" | "b",
+  _side: "a" | "b",
   config: DepthConfig,
   composerCtx?: PolarityComposerContext,
   stepNumber?: number,
@@ -218,7 +217,7 @@ function generateNeglectRisks(
   neglectedPole: string,
   dominantPole: string,
   domain: string,
-  side: "a" | "b",
+  _side: "a" | "b",
   config: DepthConfig,
   composerCtx?: PolarityComposerContext,
   stepNumber?: number,
@@ -275,7 +274,6 @@ function generateCircularCausalLoop(
     if (composed.length > 200) return composed;
   }
 
-  const isFuelsTarget = direction.includes("fuels");
   const source = sourcePole;
   const target = targetPole;
 
@@ -292,7 +290,7 @@ function generateBalkanizationRisk(
   pole: string,
   oppositePole: string,
   domain: string,
-  side: "a" | "b",
+  _side: "a" | "b",
   config: DepthConfig,
   composerCtx?: PolarityComposerContext,
   stepNumber?: number,
@@ -327,7 +325,7 @@ function generateExtremityFeedback(
   pole: string,
   domain: string,
   currentPosition: string,
-  side: "a" | "b",
+  _side: "a" | "b",
   config: DepthConfig,
   composerCtx?: PolarityComposerContext,
   stepNumber?: number,
@@ -363,7 +361,7 @@ function generateTranscendenceReward(
   oppositePole: string,
   domain: string,
   desiredOutcome: string,
-  side: "a" | "b",
+  _side: "a" | "b",
   config: DepthConfig,
   composerCtx?: PolarityComposerContext,
   stepNumber?: number,
@@ -397,7 +395,7 @@ function generateTranscendenceReward(
 function generateReflectionLoop(
   pole: string,
   domain: string,
-  side: "a" | "b",
+  _side: "a" | "b",
   config: DepthConfig,
   composerCtx?: PolarityComposerContext,
   stepNumber?: number,
@@ -646,8 +644,6 @@ function detectArchetypes(params: {
 }): ArchetypeDetectionResult[] {
   const { poleA, poleB, domain, currentPosition, evidence, desiredOutcome } = params;
   const combinedContext = `${currentPosition} ${evidence} ${desiredOutcome} ${domain}`.toLowerCase();
-  const poleALower = poleA.toLowerCase();
-  const poleBLower = poleB.toLowerCase();
 
   const detections: ArchetypeDetectionResult[] = [];
 
@@ -891,7 +887,7 @@ ${archetypeEntries}`;
 function generateEpistemicAssessment(
   input: PolarityThinkingInput & { output_depth: OutputDepth }
 ): string {
-  const { pole_a, pole_b, domain, evidence_for_position } = input;
+  const { evidence_for_position } = input;
   const evidenceStrength = evidence_for_position.length;
   const status = evidenceStrength > 200
     ? "well-supported"
@@ -964,7 +960,12 @@ export function registerTool(server: McpServer): void {
     {
       title: "Polarity / Dialectical Thinking Map",
       description:
-        "Maps the dynamic tension between two complementary poles. Produces a 9-row polarity table (Rewards of Focus, Overemphasis Feedback, Neglect Risks, Circular Causal Loops, Balkanization Risks, Extremity Feedback, Transcendence Rewards, Reflection Loops, Meta-Reflection Process) AND a 16-row × 4-level integration spectrum table. Counters the LLM's premature synthesis bias by forcing sustained attention on each pole's full value.",
+        "Generates a structured polarity mapping analysis of the dynamic tension between two complementary poles. " +
+        "Produces a 9-row polarity table (Rewards of Focus, Overemphasis Feedback, Neglect Risks, Circular Causal Loops, " +
+        "Balkanization Risks, Extremity Feedback, Transcendence Rewards, Reflection Loops, Meta-Reflection Process) and " +
+        "a 16-row × 4-level integration spectrum table. The output follows a template-based framework that structures " +
+        "dialectical analysis into consistent sections, helping avoid premature synthesis by requiring sustained attention " +
+        "on each pole's value.",
       inputSchema: z
         .object({
           pole_a: z

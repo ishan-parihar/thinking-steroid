@@ -196,7 +196,7 @@ function generateDefaultClaims(problem: string, count: number): string[] {
  * Classifies a claim into one of the 6 first-principles categories.
  * Uses keyword heuristics and structural analysis of the claim text.
  */
-function classifyClaim(claim: string, beliefs: string): ClassifiedClaim {
+function classifyClaim(claim: string, beliefs: string, composerHint?: string): ClassifiedClaim {
   const lower = claim.toLowerCase();
   const beliefsLower = beliefs.toLowerCase();
 
@@ -276,6 +276,17 @@ function classifyClaim(claim: string, beliefs: string): ClassifiedClaim {
   // Check if claim appears in beliefs (indicates held belief)
   if (beliefsLower.includes(lower.substring(0, Math.min(30, lower.length)))) {
     scores["inherited-assumption"] += 1;
+  }
+
+  // Optional composer hint: small score boost to matching categories
+  if (composerHint) {
+    const hintLower = composerHint.toLowerCase();
+    if (hintLower.includes('physical') || hintLower.includes('law') || hintLower.includes('fundamental')) scores['physical-law'] += 2;
+    if (hintLower.includes('assumption') || hintLower.includes('belief') || hintLower.includes('inherited') || hintLower.includes('presuppos')) scores['inherited-assumption'] += 2;
+    if (hintLower.includes('convention') || hintLower.includes('social') || hintLower.includes('norm') || hintLower.includes('cultural')) scores['social-convention'] += 2;
+    if (hintLower.includes('context') || hintLower.includes('constraint') || hintLower.includes('resource') || hintLower.includes('limit')) scores['contextual-constraint'] += 2;
+    if (hintLower.includes('logical') || hintLower.includes('necessity') || hintLower.includes('implies') || hintLower.includes('entail')) scores['logical-necessity'] += 2;
+    if (hintLower.includes('fact') || hintLower.includes('observation') || hintLower.includes('empirical') || hintLower.includes('data')) scores['irreducible-fact'] += 2;
   }
 
   const maxScore = Math.max(...Object.values(scores));
@@ -423,7 +434,6 @@ function generateLiberationForClaim(claim: string, category: FirstPrinciplesCate
 
 function getOriginContext(claim: string): string {
   const lower = claim.toLowerCase();
-  const words = new Set(lower.split(/\s+/));
 
   const domainMappings: Array<[string[], string]> = [
     [["ai", "llm", "ml", "machine learning", "neural", "model", "training", "inference", "prompt", "token"], "machine learning paradigm and capability extrapolation"],
@@ -611,6 +621,7 @@ function decompose(params: {
   if (composeSection && fullText) {
     const composedClaims = composeSection('deconstructive', 0, 3, []);
     if (composedClaims.length > 200) {
+      // Long output: split by sentences and add individually
       const composedSentences = composedClaims.split(/(?<=[.!?])\s+/).filter((s: string) => s.trim().length > 10);
       const seen = new Set(selectedClaims.map((c) => c.toLowerCase().replace(/[^a-z0-9\s]/g, "")));
       for (const s of composedSentences) {
@@ -620,24 +631,33 @@ function decompose(params: {
           selectedClaims.push(s);
         }
       }
+    } else if (composedClaims.length > 80) {
+      // Medium output (80-200 chars): add as a single claim rather than splitting
+      const seen = new Set(selectedClaims.map((c) => c.toLowerCase().replace(/[^a-z0-9\s]/g, "")));
+      const normalized = composedClaims.toLowerCase().replace(/[^a-z0-9\s]/g, "");
+      if (!seen.has(normalized) && selectedClaims.length < claimCount) {
+        selectedClaims.push(composedClaims.trim());
+      }
     }
   }
 
   const claims = selectedClaims.map((c) => classifyClaim(c, current_beliefs));
 
-  // Try composer for socratic interrogation (corrective)
   let socraticInterrogation = generateSocraticInterrogation(claims);
+  // Enrich socratic interrogation with composer insights (corrective)
   if (composeSection && fullText) {
     const composedSocratic = composeSection('corrective', 1, 3, claims.map((c) => c.claim));
-    if (composedSocratic.length > 200) {
-      const lines = composedSocratic.split(/\n+/).filter((s: string) => s.trim().length > 10);
-      socraticInterrogation = claims.map((t, idx) => {
+    if (composedSocratic.length > 60) {
+      const lines = composedSocratic.split(/\n+/).filter((s: string) => s.trim().length > 15);
+      socraticInterrogation = socraticInterrogation.map((entry, idx) => {
         const lineText = lines[idx % lines.length] || "";
+        const templateEvidence = entry.evidence;
+        const enrichedEvidence = lineText.length > 0
+          ? `${templateEvidence}\n\nComposer insight: ${lineText.substring(0, 200)}`
+          : templateEvidence;
         return {
-          assumption: t.claim,
-          origin: lineText.length > 0 ? `Composer analysis: ${lineText.substring(0, 150)}...` : generateOriginForCategory(t.claim, t.category),
-          evidence: lineText.length > 0 ? lineText : generateEvidenceForClaim(t.claim, t.category),
-          liberation: generateLiberationForClaim(t.claim, t.category),
+          ...entry,
+          evidence: enrichedEvidence,
         };
       });
     }
@@ -645,20 +665,19 @@ function decompose(params: {
 
   const constraintMap = generateConstraintMap(claims);
 
-  // Try composer for reconstruction options (synthetic)
+  // Enrich reconstruction options with composer output (synthetic)
   let reconstructionOptions = generateReconstructionOptions(claims, socraticInterrogation, optionCount);
   if (composeSection && fullText) {
     const composedReconstruction = composeSection('synthetic', 2, 3, [...claims.map((c) => c.claim), ...socraticInterrogation.map((s) => s.evidence)]);
-    if (composedReconstruction.length > 200) {
-      const sections = composedReconstruction.split(/\n\n+/).filter((s: string) => s.trim().length > 20);
-      if (sections.length > 0) {
-        reconstructionOptions = sections.slice(0, optionCount).map((text: string, idx: number) => ({
-          title: `Composer Option ${idx + 1}`,
-          description: text.trim(),
-          starting_facts: claims.filter((c) => c.category === "irreducible-fact" || c.category === "physical-law").map((c) => c.claim).slice(0, 2),
-          bypassed_assumptions: claims.filter((c) => c.category === "inherited-assumption").map((c) => c.claim).slice(0, 2),
-        }));
-      }
+    if (composedReconstruction.length > 80) {
+      const composerOption: ReconstructionOption = {
+        title: "Alternative Perspective",
+        description: composedReconstruction.trim().substring(0, 500),
+        starting_facts: claims.filter((c) => c.category === "irreducible-fact" || c.category === "physical-law").map((c) => c.claim).slice(0, 2),
+        bypassed_assumptions: claims.filter((c) => c.category === "inherited-assumption").map((c) => c.claim).slice(0, 2),
+      };
+      // Keep template options and add composer output as additional, capped at optionCount
+      reconstructionOptions = [...reconstructionOptions, composerOption].slice(0, optionCount);
     }
   }
 
@@ -704,18 +723,17 @@ export function registerTool(server: McpServer): void {
     {
       title: "First Principles Decomposition",
       description:
-        "Decomposes problems into irreducible facts, separates inherited assumptions from bedrock constraints, " +
-        "and generates reconstruction options from first principles. Based on Socratic questioning and Elon Musk's " +
-        "reasoning approach. Best for breaking free from analogy-based reasoning, challenging inherited assumptions, " +
-        "and identifying what is truly impossible vs. merely conventional.\n\n" +
-        "Claims are classified into 6 categories: irreducible-fact (atomic observations), inherited-assumption " +
-        "(unexamined beliefs from culture/tradition), contextual-constraint (current but not universal limits), " +
+        "Generates a first-principles decomposition of a problem, classifying claims into categories and producing " +
+        "reconstruction options. Output separates input claims into 6 categories: irreducible-fact (atomic observations), " +
+        "inherited-assumption (unexamined beliefs from culture/tradition), contextual-constraint (current but not universal limits), " +
         "physical-law (fundamental constraints), social-convention (collective agreements, not necessities), " +
         "and logical-necessity (conclusions that follow necessarily from premises).\n\n" +
-        "Socratic interrogation applies 3 levels of questioning to each inherited assumption and social convention: " +
+        "Socratic interrogation applies 3 levels of analysis to each inherited assumption and social convention: " +
         "origin tracing, evidence testing, and liberation analysis (what becomes possible if the assumption is false).\n\n" +
-        "Use this tool when you need to break free from conventional thinking, challenge deeply held assumptions, " +
-        "or rebuild a solution from the ground up based only on what is actually true.",
+        "Use this tool when you need to structure analysis of a problem by separating assumptions from constraints, " +
+        "or to generate reconstruction options organized by foundational principles. " +
+        "The classification and analysis are generated based on the specified framework — they represent structured " +
+        "perspectives on the input, not objective truth determinations.",
       inputSchema: z
         .object({
           problem_or_system: z

@@ -15,7 +15,7 @@ function enforceCharacterLimit(text: string): string {
 }
 
 // Executive mode truncates to < 5,000 chars with progressive disclosure markers.
-const EXECUTIVE_SOFT_LIMIT = 5000;
+const _EXECUTIVE_SOFT_LIMIT = 5000;
 
 function progressiveDisclosureMarker(sectionId: string, detailSummary: string): string {
   return `\n\n[DETAIL: ${sectionId}] ${detailSummary}`;
@@ -796,7 +796,7 @@ export function formatFirstPrinciples(
 
   if (decomposition.socraticInterrogation.length > 0) {
     sections.push("### Socratic Interrogation\n");
-    decomposition.socraticInterrogation.forEach((si, idx) => {
+    decomposition.socraticInterrogation.forEach((si) => {
       sections.push(`#### ${escapeMdLong(si.assumption)}\n`);
       sections.push(`- **Origin:** ${si.origin}`);
       sections.push(`- **Evidence:** ${si.evidence}`);
@@ -894,7 +894,7 @@ export function formatScenarioPlanning(
   preMortem: PreMortemFailure[],
   futuresWheel: FuturesWheelRing,
   strategicImplications: { robust: string[]; scenario_specific: { scenario: string; actions: string[] }[] } | undefined,
-  output_depth: OutputDepth = 'standard',
+  _output_depth: OutputDepth = 'standard',
   output_mode: OutputMode = 'analytical',
   epistemic_status: EpistemicStatus = 'speculative',
   suggested_followup: SuggestedTool[] = [],

@@ -338,7 +338,7 @@ function generateBoundaryAnalysis(
 function getBoundaryShift(
   from: CynefinDomain,
   to: CynefinDomain,
-  situation: string
+  _situation: string
 ): string {
   const shifts: Record<string, string> = {
     "clear-to-complicated":
@@ -374,7 +374,7 @@ function getBoundaryShift(
 
 function generateMisclassificationWarning(
   domain: CynefinDomain,
-  situation: string
+  _situation: string
 ): string {
   const baseWarning = CYNEFIN_RESPONSES[domain].warning_if_misclassified;
 
@@ -582,14 +582,12 @@ export function registerTool(server: McpServer): void {
     {
       title: "Cynefin Framework Classification",
       description:
-        "Classifies situations using the Cynefin framework into Clear, Complicated, Complex, Chaotic, or Disorder domains. " +
-        "Prescribes the appropriate response pattern (Sense-Categorize-Respond, Sense-Analyze-Respond, Probe-Sense-Respond, " +
-        "Act-Sense-Respond, or Decompose-Classify-Route). Essential for choosing the right thinking tools for the right " +
-        "situation — prevents category errors like applying best practices to complex problems or over-analyzing simple ones.\n\n" +
-        "The classification is based on signal analysis of the situation description, contextual modifiers for time pressure " +
-        "and stakes, and keyword matching against domain-specific indicators. Confidence scores reflect how clearly the " +
-        "situation maps to a single domain.\n\n" +
-        "Use this tool before any major decision to ensure your response strategy matches the actual nature of the situation. " +
+        "Generates a Cynefin framework classification, categorizing situations into Clear, Complicated, Complex, Chaotic, " +
+        "or Disorder domains. Produces the assigned domain, recommended response pattern (Sense-Categorize-Respond, " +
+        "Sense-Analyze-Respond, Probe-Sense-Respond, Act-Sense-Respond, or Decompose-Classify-Route), and a confidence " +
+        "score. The classification uses signal analysis of the situation description, contextual modifiers for time pressure " +
+        "and stakes, and keyword matching against domain-specific indicators.\n\n" +
+        "Use this tool before any major decision to help select response strategies appropriate to the situation's nature. " +
         "It is especially valuable when you're unsure whether to analyze, experiment, act immediately, or follow a procedure.",
       inputSchema: z
         .object({

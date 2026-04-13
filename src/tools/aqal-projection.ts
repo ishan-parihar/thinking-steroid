@@ -1068,7 +1068,12 @@ export function registerTool(server: McpServer): void {
     {
       title: "AQAL Temporal Projection Analysis",
       description:
-        "Integral AQAL analysis with temporal projections. Maps how a situation evolves across all 4 quadrants (Intentional, Behavioral, Cultural, Social) at three time horizons: Short-Term (<1 year), Mid-Term (1-3 years), Long-Term (3+ years). Recognizes that different quadrants change at different rates — behavioral changes fastest, cultural changes slowest.",
+        "Generates AQAL temporal projections showing how a situation may evolve across all 4 quadrants " +
+        "(Intentional, Behavioral, Cultural, Social) at three time horizons: Short-Term (<1 year), Mid-Term (1-3 years), " +
+        "Long-Term (3+ years). The output follows a template-based framework that projects potential changes at different " +
+        "rates per quadrant — behavioral changes tend to be fastest, cultural changes slowest. Produces structured temporal " +
+        "analysis sections for each quadrant at each time horizon, helping anticipate how different dimensions of a situation " +
+        "may unfold over time.",
       inputSchema: z
         .object({
           situation: z

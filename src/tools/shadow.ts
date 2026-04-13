@@ -595,7 +595,13 @@ export function registerTool(server: McpServer): void {
     {
       title: "Shadow Analysis Report",
       description:
-        "In-depth shadow analysis applying multiple psychological frameworks (Freudian, Jungian, Gestalt, Integral) to behavioral data. Reveals what's NOT being said by identifying unconscious patterns, defense mechanisms, developmental shadows, and shadow constellations. Operates on invisible data — the gaps, contradictions, and patterns that the system cannot see in itself.",
+        "Generates a structured shadow analysis applying multiple psychological frameworks (Freudian, Jungian, Gestalt, Integral) " +
+        "to provided behavioral data. Produces sections covering potential defense patterns, developmental blind spots, and " +
+        "unexamined dynamics based on the input contradictions, triggers, and self/other descriptions. The output follows a " +
+        "template-based framework that organizes analysis by psychological lens, identifying patterns such as gaps between " +
+        "stated and actual behavior, recurring trigger themes, and potential projection dynamics. This is a structured " +
+        "analysis tool — it generates plausible interpretations based on the specified frameworks, not definitive psychological " +
+        "diagnoses.",
       inputSchema: z.object({
         behavioral_data: z.string().describe("Specific behaviors, quotes, patterns, contradictions"),
         context: z.string().describe("The broader context in which the behavior occurs"),

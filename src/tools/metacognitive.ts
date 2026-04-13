@@ -20,11 +20,6 @@ function enforceLimit(text: string): string {
 
 // ─── Bias Detection Engine ───────────────────────────────────────────────────
 
-interface BiasSignal {
-  keywords: string[];
-  patterns: RegExp[];
-}
-
 const BIAS_SIGNALS: Record<CognitiveBias, { keywords: string[]; patterns: RegExp[] }> = {
   "confirmation-bias": {
     keywords: [
@@ -293,15 +288,6 @@ function detectBiases(
         thoughtType: "corrective" as ThoughtType,
         previousOutputs: [],
       });
-  if (composerAttempt.length >= 50) {
-    return [{
-      bias: "confirmation-bias",
-      likelihood: "medium",
-      evidence: `Composer analysis: ${composerAttempt.substring(0, 200)}`,
-      detection_question: "Am I selectively attending to data that confirms my pre-existing beliefs?",
-      mitigation: "Deliberately seek disconfirming evidence and consider alternative interpretations.",
-    }];
-  }
 
   const combined = `${reasoningChain}\n${conclusion}`.toLowerCase();
   const detected: DetectedBias[] = [];
@@ -350,6 +336,10 @@ function detectBiases(
     }
   }
 
+  if (composerAttempt.length >= 30 && detected.length > 0) {
+    detected[0].evidence += `\n\nComposer insight: ${composerAttempt.substring(0, 150)}`;
+  }
+
   detected.sort((a, b) => {
     const order = { high: 0, medium: 1, low: 2 };
     return order[a.likelihood] - order[b.likelihood];
@@ -386,7 +376,6 @@ function detectStructuralBiases(
   alreadyDetected: DetectedBias[],
 ): DetectedBias[] {
   const combined = `${reasoningChain}\n${conclusion}`;
-  const combinedLower = combined.toLowerCase();
   const sentences = combined.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 10);
   const structuralBiases: DetectedBias[] = [];
 
@@ -543,14 +532,6 @@ function detectRecursiveLoops(
         thoughtType: "relational" as ThoughtType,
         previousOutputs: [],
       });
-  if (composerAttempt.length >= 50) {
-    return {
-      spiral_detected: composerAttempt.toLowerCase().includes("spiral") || composerAttempt.toLowerCase().includes("loop") || composerAttempt.toLowerCase().includes("circular"),
-      loop_description: composerAttempt.substring(0, 400),
-      loop_stages: ["Composer-identified recursive pattern"],
-      severity: composerAttempt.length > 200 ? "moderate" : "mild",
-    };
-  }
 
   const combined = `${reasoningChain}\n${conclusion}`.toLowerCase();
   const hasConfirmationBias = detectedBiases.some(
@@ -610,11 +591,17 @@ function detectRecursiveLoops(
   if (interpretationCount > 0) loopStages.push("Interpretation → conclusions that strengthen original beliefs");
   if (hasConfirmationBias) loopStages.push("Conclusions → reinforced beliefs that further narrow future data selection");
 
+  let loopDescription = loopSignals >= 2
+    ? `Detected a confirmation bias spiral with ${loopSignals} signal(s). The reasoning chain shows evidence of beliefs filtering data selection, which is then interpreted in ways that confirm the original beliefs, creating a self-reinforcing loop that excludes disconfirming evidence.`
+    : "No significant recursive confirmation loops detected. The reasoning chain does not show strong evidence of beliefs circularly reinforcing themselves through selective data processing.";
+
+  if (composerAttempt.length >= 30) {
+    loopDescription += `\n\nComposer perspective: ${composerAttempt.substring(0, 200)}`;
+  }
+
   return {
     spiral_detected: loopSignals >= 2,
-    loop_description: loopSignals >= 2
-      ? `Detected a confirmation bias spiral with ${loopSignals} signal(s). The reasoning chain shows evidence of beliefs filtering data selection, which is then interpreted in ways that confirm the original beliefs, creating a self-reinforcing loop that excludes disconfirming evidence.`
-      : "No significant recursive confirmation loops detected. The reasoning chain does not show strong evidence of beliefs circularly reinforcing themselves through selective data processing.",
+    loop_description: loopDescription,
     loop_stages: loopStages.length > 0 ? loopStages : ["No spiral stages detected"],
     severity,
   };
@@ -648,16 +635,17 @@ function identifyBlindSpots(
         thoughtType: "perspectival" as ThoughtType,
         previousOutputs: [],
       });
-  if (composerAttempt.length >= 50) {
-    return [{
-      category: "Composer-Identified Blind Spots",
-      description: composerAttempt.substring(0, 300),
-      why_missed: "The content composer identified these perspectives as potentially overlooked.",
-    }];
-  }
 
   const combined = `${reasoningChain}\n${conclusion}`.toLowerCase();
   const blindSpots: BlindSpot[] = [];
+
+  if (composerAttempt.length >= 30) {
+    blindSpots.push({
+      category: "Composer-Identified Perspectives",
+      description: composerAttempt.substring(0, 300),
+      why_missed: "These perspectives were surfaced by the content composer's analysis and may not have been apparent through algorithmic detection alone.",
+    });
+  }
 
   if (!combined.includes("alternative") && !combined.includes("other perspective")) {
     blindSpots.push({
@@ -747,18 +735,6 @@ function analyzeLadder(
   composeSection?: (thoughtType: ThoughtType, stepNumber: number, totalSections: number, prevOutputs: string[]) => string,
 ): LadderAnalysis[] {
   const text = fullText ?? `${reasoningChain} ${conclusion} ${availableData ?? ""}`;
-  const composerAttempt = composeSection
-    ? composeSection("diagnostic", 1, 5, [])
-    : composeToolContent({
-        toolName: "think_metacognitive",
-        text,
-        initialPosition: conclusion,
-        mode: "critical" as ThinkingMode,
-        stepNumber: 1,
-        totalSteps: 5,
-        thoughtType: "diagnostic" as ThoughtType,
-        previousOutputs: [],
-      });
 
   const combined = `${reasoningChain}\n${conclusion}`;
   const combinedLower = combined.toLowerCase();
@@ -772,6 +748,36 @@ function analyzeLadder(
     "beliefs",
     "actions",
   ];
+
+  const rungComposerConfig: Record<LadderOfInferenceStep, { thoughtType: ThoughtType; stepNumber: number }> = {
+    "observable-data": { thoughtType: "diagnostic", stepNumber: 1 },
+    "selected-data": { thoughtType: "perspectival", stepNumber: 2 },
+    "interpreted-meaning": { thoughtType: "perspectival", stepNumber: 3 },
+    assumptions: { thoughtType: "deconstructive", stepNumber: 4 },
+    conclusions: { thoughtType: "diagnostic", stepNumber: 5 },
+    beliefs: { thoughtType: "relational", stepNumber: 6 },
+    actions: { thoughtType: "synthetic", stepNumber: 7 },
+  };
+
+  const previousAssessments: string[] = [];
+  const composedContent: Record<LadderOfInferenceStep, string> = {} as Record<LadderOfInferenceStep, string>;
+  for (const step of steps) {
+    const config = rungComposerConfig[step];
+    const composed = composeSection
+      ? composeSection(config.thoughtType, config.stepNumber, 7, [...previousAssessments])
+      : composeToolContent({
+          toolName: "think_metacognitive",
+          text,
+          initialPosition: conclusion,
+          mode: "critical" as ThinkingMode,
+          stepNumber: config.stepNumber,
+          totalSteps: 7,
+          thoughtType: config.thoughtType as ThoughtType,
+          previousOutputs: [...previousAssessments],
+        });
+    composedContent[step] = composed;
+    if (composed.length > 0) previousAssessments.push(composed);
+  }
 
   const observableContent = extractDataReferences(reasoningChain, availableData);
   const selectedContent = extractSelectedData(reasoningChain, availableData);
@@ -791,13 +797,21 @@ function analyzeLadder(
     actions: actionsContent,
   };
 
+  const mergeComposer = (step: LadderOfInferenceStep, extractorOutput: string): string => {
+    const composed = composedContent[step];
+    if (composed.length >= 30) {
+      return `${extractorOutput}\n\nComposer analysis: ${composed.substring(0, 200)}`;
+    }
+    return extractorOutput;
+  };
+
   const analysis: LadderAnalysis[] = [];
 
   for (const step of steps) {
     const stepInfo = LADDER_OF_INFERENCE_STEPS[step];
     const errors: string[] = [...stepInfo.common_errors];
     let validTransition = true;
-    const content = rungContent[step];
+    const content = mergeComposer(step, rungContent[step]);
 
     switch (step) {
       case "observable-data": {
@@ -808,23 +822,13 @@ function analyzeLadder(
           validTransition = false;
         }
 
-        if (composerAttempt.length >= 50) {
-          analysis.push({
-            step,
-            content_assessment: `${contentAssessment}\n\nComposer analysis: ${composerAttempt.substring(0, 300)}`,
-            valid_transition: validTransition,
-            errors_detected: errors,
-            descent_question: stepInfo.descent_question,
-          });
-        } else {
-          analysis.push({
-            step,
-            content_assessment: contentAssessment,
-            valid_transition: validTransition,
-            errors_detected: errors,
-            descent_question: stepInfo.descent_question,
-          });
-        }
+        analysis.push({
+          step,
+          content_assessment: contentAssessment,
+          valid_transition: validTransition,
+          errors_detected: errors,
+          descent_question: stepInfo.descent_question,
+        });
         break;
       }
 
@@ -1572,14 +1576,18 @@ export function registerTool(server: McpServer): void {
     {
       title: "Metacognitive Reasoning Audit",
       description:
-        "Audits a chain of reasoning using Chris Argyris' Ladder of Inference and detects cognitive biases from a 20-bias library. " +
-        "Traces the mental steps from observable data through selection, interpretation, assumptions, conclusions, beliefs, and actions. " +
-        "Identifies where reasoning may have gone wrong and what blind spots exist. Essential for catching reasoning errors before they propagate into decisions.\n\n" +
-        "The tool performs: (1) Ladder of Inference analysis across all 7 rungs with validity assessment, (2) Cognitive bias detection " +
-        "against 20 biases from the Decision Lab taxonomy, (3) Recursive loop detection for confirmation bias spirals, " +
-        "(4) Blind spot identification for unasked questions and unconsidered perspectives.\n\n" +
-        "Use this tool when you need to audit your own or another agent's reasoning before acting on it. " +
-        "Particularly valuable for high-stakes decisions, controversial conclusions, or when the reasoning feels 'too clean.'",
+        "Generates a metacognitive audit of a reasoning chain using Chris Argyris' Ladder of Inference framework, " +
+        "evaluating for potential cognitive biases from a 20-bias library. Output traces the reasoning from observable " +
+        "data through selection, interpretation, assumptions, conclusions, beliefs, and actions, generating analysis of " +
+        "where reasoning may be vulnerable and what blind spots may exist.\n\n" +
+        "The output includes: (1) Ladder of Inference analysis across all 7 rungs with validity assessment, " +
+        "(2) Evaluation for potential cognitive biases against 20 biases from the Decision Lab taxonomy, " +
+        "(3) Analysis of recursive loops that may indicate confirmation bias patterns, " +
+        "(4) Identification of unasked questions and unconsidered perspectives.\n\n" +
+        "Use this tool when you need to evaluate reasoning before acting on it. " +
+        "Particularly valuable for high-stakes decisions, controversial conclusions, or when the reasoning feels 'too clean.' " +
+        "Note: This tool generates structured analysis based on the specified frameworks — it does not guarantee detection " +
+        "of all reasoning errors or biases.",
       inputSchema: z
         .object({
           reasoning_chain: z

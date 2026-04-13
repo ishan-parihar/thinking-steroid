@@ -46,11 +46,8 @@ function generateDescription(
   u2: string,
   u1Low: boolean,
   u2Low: boolean,
-  name: string,
+  _name: string,
 ): string {
-  const u1State = u1Low ? "low" : "high";
-  const u2State = u2Low ? "low" : "high";
-
   const narratives: Record<string, string> = {
     positive_positive: `In this world, ${u1} reaches high levels while ${u2} also flourishes. The convergence of these forces creates a self-reinforcing cycle of growth and innovation around "${focalQuestion}". Institutions adapt rapidly, trust is high, and the conditions for transformative progress are abundant. This is a world where positive feedback loops amplify opportunity.`,
     positive_negative: `Here, ${u1} reaches high levels but ${u2} remains constrained. The asymmetry creates a world of uneven development — pockets of excellence coexist with systemic fragility around "${focalQuestion}". Those who can leverage ${u1Low ? "low" : "high"} ${u1} thrive, while those dependent on ${u2} face growing headwinds. This is a world of winners and losers defined by access.`,
@@ -103,7 +100,7 @@ function generateDrivingForces(
 }
 
 function generateFirstOrderConsequences(
-  name: string,
+  _name: string,
   u1: string,
   u2: string,
   u1Low: boolean,
@@ -150,8 +147,8 @@ function generateFirstOrderConsequences(
 function generateSecondOrderConsequences(
   u1: string,
   u2: string,
-  u1Low: boolean,
-  u2Low: boolean,
+  _u1Low: boolean,
+  _u2Low: boolean,
   firstOrder: string[],
 ): string[] {
   if (firstOrder.length < 2) return [];
@@ -281,7 +278,7 @@ function generateThirdOrderConsequences(
   return results;
 }
 
-function generatePreMortem(focalQuestion: string): PreMortemFailure[] {
+function generatePreMortem(_focalQuestion: string): PreMortemFailure[] {
   return [
     {
       failure_mode: "Single-scenario attachment — we invested in one forecast and ignored alternatives",
@@ -321,7 +318,7 @@ function generatePreMortem(focalQuestion: string): PreMortemFailure[] {
   ];
 }
 
-function generateFuturesWheel(focalQuestion: string): FuturesWheelRing {
+function generateFuturesWheel(_focalQuestion: string): FuturesWheelRing {
   const firstRing = [
     `Resource allocation shifts to prepare for the most probable scenario`,
     `Organizational structure adapts to address identified vulnerabilities`,
@@ -385,7 +382,7 @@ function generateFuturesWheel(focalQuestion: string): FuturesWheelRing {
 
   const thirdRing: Record<string, string> = {};
   const usedTemplates = new Set<string>();
-  for (const [parent, children] of Object.entries(secondRing)) {
+  for (const [_parent, children] of Object.entries(secondRing)) {
     for (const child of children) {
       const seed = child.split("").reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0);
       let templateIdx = (Math.abs(seed) + Object.keys(thirdRing).length) % thirdRingTemplates.length;
@@ -441,9 +438,10 @@ export function registerTool(server: McpServer): void {
     {
       title: "Scenario Planning Matrix",
       description:
-        "Generates a 2x2 scenario planning matrix from two key uncertainties, creating four named scenarios with archetypal narratives. " +
-        "Includes pre-mortem failure analysis, futures wheel mapping of 1st/2nd/3rd order consequences, and early warning signals. " +
-        "Best for strategic planning, risk anticipation, and exploring multiple plausible futures before committing to a course of action.",
+        "Generates a 2x2 scenario planning matrix from two key uncertainties, producing four named scenarios with " +
+        "archetypal narratives following a structured scenario planning framework. Output includes pre-mortem failure " +
+        "analysis, futures wheel mapping of 1st/2nd/3rd order consequences, and early warning signals. " +
+        "Use for strategic planning, risk anticipation, and exploring multiple plausible futures before committing to a course of action.",
       inputSchema: z
         .object({
           focal_question: z
@@ -503,7 +501,7 @@ export function registerTool(server: McpServer): void {
 
         // Hybrid mode: attempt content composer first, fall back to templates
         const fullText = focal_question + " " + key_uncertainties[0] + " " + key_uncertainties[1];
-        const structure = getStructureForText(fullText, focal_question);
+        const _structure = getStructureForText(fullText, focal_question);
 
         const composeSection = (thoughtType: ThoughtType, stepNumber: number, totalSections: number, prevOutputs: string[]): string => {
           return composeToolContent({

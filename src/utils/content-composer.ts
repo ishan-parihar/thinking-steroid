@@ -416,7 +416,7 @@ const RULE_SEQ_COUNTER_GENERATION: GrammarRule = {
       return "demonstrating structural disanalogy";
     },
     vulnerability: (ctx) => ctx.structure.uncertainties[0] ?? "a gap between evidence and conclusion",
-    response: (ctx) => "strengthening the evidentiary base or narrowing the claim's scope",
+    response: (_ctx) => "strengthening the evidentiary base or narrowing the claim's scope",
   },
   tools: ["think_sequential"],
 };
@@ -468,8 +468,8 @@ const RULE_POLARITY_INTEGRATION_SPECTRUM: GrammarRule = {
     evidence: (ctx) => ctx.structure.claims[0] ?? "observable behavioral patterns",
     direction: (ctx) => ctx.structure.entities[1] ?? "the underweighted pole",
     action: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "deliberate rebalancing of priorities",
-    current: (ctx) => "reactive oscillation between extremes",
-    target: (ctx) => "integrated management of both poles simultaneously",
+    current: (_ctx) => "reactive oscillation between extremes",
+    target: (_ctx) => "integrated management of both poles simultaneously",
   },
   tools: ["think_polarity"],
 };
@@ -481,13 +481,13 @@ const RULE_POLARITY_ARCHETYPE_DETECTION: GrammarRule = {
   stepRange: [1, 4],
   template: "The {archetype} archetype is active: {pattern}. This manifests as {symptom}, where attempts to fix {problem} through {fix} inadvertently worsen {worsening}. The leverage point is {leverage}.",
   slots: {
-    archetype: (ctx) => "Fixes That Fail",
+    archetype: (_ctx) => "Fixes That Fail",
     pattern: (ctx) => ctx.patterns.causal[0]?.description ?? "a short-term fix creates long-term dependency",
     symptom: (ctx) => ctx.structure.relationships[0] ?? "increasing effort producing diminishing results",
     problem: (ctx) => ctx.structure.entities[0] ?? "the presenting problem",
     fix: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "applying more of the same solution",
     worsening: (ctx) => ctx.patterns.causal[0]?.structure.effect ?? "the underlying systemic condition",
-    leverage: (ctx) => "shifting from symptomatic relief to addressing root causes",
+    leverage: (_ctx) => "shifting from symptomatic relief to addressing root causes",
   },
   tools: ["think_polarity"],
 };
@@ -505,7 +505,7 @@ const RULE_POLARITY_CIRCULAR_CAUSALITY: GrammarRule = {
       if (ctx.subMode === "deductive") return "self-reinforcing escalation";
       return "self-balancing oscillation";
     },
-    intervention: (ctx) => "introducing a meta-level perspective that holds both poles simultaneously",
+    intervention: (_ctx) => "introducing a meta-level perspective that holds both poles simultaneously",
   },
   tools: ["think_polarity"],
 };
@@ -520,10 +520,10 @@ const RULE_POLARITY_TRANSCENDENCE: GrammarRule = {
     poleA: (ctx) => ctx.structure.entities[0] ?? "the first position",
     poleB: (ctx) => ctx.structure.entities[1] ?? "the opposing position",
     integration: (ctx) => ctx.structure.claims[0] ?? "a framework that leverages both poles dynamically",
-    rewardA: (ctx) => "the strengths of the first approach",
-    trapA: (ctx) => "its characteristic blind spots",
-    rewardB: (ctx) => "the strengths of the opposing approach",
-    trapB: (ctx) => "its characteristic excesses",
+    rewardA: (_ctx) => "the strengths of the first approach",
+    trapA: (_ctx) => "its characteristic blind spots",
+    rewardB: (_ctx) => "the strengths of the opposing approach",
+    trapB: (_ctx) => "its characteristic excesses",
   },
   tools: ["think_polarity"],
 };
@@ -585,7 +585,7 @@ const RULE_AQAL_SOCIAL_QUADRANT: GrammarRule = {
     structures: (ctx) => ctx.structure.entities.slice(0, 2).join(" and ") || "organizational and institutional structures",
     systems: (ctx) => ctx.patterns.causal[0]?.description ?? "policies, processes, and power dynamics",
     constraints: (ctx) => ctx.structure.uncertainties[0] ?? "resource, technological, and temporal limits",
-    dynamics: (ctx) => "emergent properties from the interaction of multiple systems",
+    dynamics: (_ctx) => "emergent properties from the interaction of multiple systems",
   },
   tools: ["think_aqal_situational"],
 };
@@ -620,7 +620,7 @@ const RULE_AQAL_PROJ_SHORT_TERM: GrammarRule = {
   slots: {
     subject: (ctx) => ctx.structure.entities[0] ?? "the system",
     trajectory: (ctx) => ctx.structure.claims[0] ?? "continue along current trajectory with minor adjustments",
-    fastQuadrant: (ctx) => "Behavioral — observable changes are most immediate",
+    fastQuadrant: (_ctx) => "Behavioral — observable changes are most immediate",
     immediateChange: (ctx) => ctx.patterns.causal[0]?.structure.effect ?? "shifts in measurable outcomes",
     urgency: (ctx) => ctx.structure.uncertainties[0] ?? "external deadlines and competitive pressures",
   },
@@ -635,9 +635,9 @@ const RULE_AQAL_PROJ_MID_TERM: GrammarRule = {
   template: "Mid-term projection (1-3 years): {midTrajectory}. Structural changes in {slowQuadrant} begin to manifest as {structuralChange}. Cultural lag is {culturalLag}.",
   slots: {
     midTrajectory: (ctx) => ctx.structure.claims[1] ?? ctx.structure.claims[0] ?? "systemic adaptation with structural friction",
-    slowQuadrant: (ctx) => "Cultural — shared worldviews change more slowly than behaviors",
+    slowQuadrant: (_ctx) => "Cultural — shared worldviews change more slowly than behaviors",
     structuralChange: (ctx) => ctx.patterns.causal[0]?.description ?? "institutional realignment and policy shifts",
-    culturalLag: (ctx) => "the gap between new structures and old cultural narratives",
+    culturalLag: (_ctx) => "the gap between new structures and old cultural narratives",
   },
   tools: ["think_aqal_projection"],
 };
@@ -650,8 +650,8 @@ const RULE_AQAL_PROJ_LONG_TERM: GrammarRule = {
   template: "Long-term projection (3+ years): {longTrajectory}. Deepest quadrant shifts in {deepestQuadrant} produce {paradigmShift}. The slowest-changing dimension determines the ultimate outcome.",
   slots: {
     longTrajectory: (ctx) => ctx.structure.claims[0] ?? "fundamental transformation or entrenched stagnation",
-    deepestQuadrant: (ctx) => "Cultural/Intentional — identity and worldview are the slowest to change",
-    paradigmShift: (ctx) => "a new operating paradigm or collapse to a simpler structure",
+    deepestQuadrant: (_ctx) => "Cultural/Intentional — identity and worldview are the slowest to change",
+    paradigmShift: (_ctx) => "a new operating paradigm or collapse to a simpler structure",
   },
   tools: ["think_aqal_projection"],
 };
@@ -663,10 +663,10 @@ const RULE_AQAL_PROJ_RATE_OF_CHANGE: GrammarRule = {
   stepRange: [3, 5],
   template: "Differential rate analysis: Behavioral changes at {behavioralRate}, Cultural at {culturalRate}. The mismatch creates {mismatchEffect}, requiring {compensation}. Interventions must respect quadrant-specific tempo.",
   slots: {
-    behavioralRate: (ctx) => "fast — weeks to months for observable change",
-    culturalRate: (ctx) => "slow — years to decades for worldview shifts",
-    mismatchEffect: (ctx) => "structural changes outpacing cultural adaptation",
-    compensation: (ctx) => "deliberate sense-making processes to close the gap",
+    behavioralRate: (_ctx) => "fast — weeks to months for observable change",
+    culturalRate: (_ctx) => "slow — years to decades for worldview shifts",
+    mismatchEffect: (_ctx) => "structural changes outpacing cultural adaptation",
+    compensation: (_ctx) => "deliberate sense-making processes to close the gap",
   },
   tools: ["think_aqal_projection"],
 };
@@ -681,8 +681,8 @@ const RULE_AQAL_PROJ_INTERVENTION_TIMING: GrammarRule = {
     intervention: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "structural realignment",
     timeframe: (ctx) => ctx.stepNumber <= 2 ? "short-term" : ctx.stepNumber <= 4 ? "mid-term" : "long-term",
     rationale: (ctx) => ctx.patterns.causal[0]?.description ?? "the window when conditions are most receptive",
-    tooEarly: (ctx) => "resistance from entrenched cultural patterns",
-    tooLate: (ctx) => "the problem has crystallized beyond easy intervention",
+    tooEarly: (_ctx) => "resistance from entrenched cultural patterns",
+    tooLate: (_ctx) => "the problem has crystallized beyond easy intervention",
   },
   tools: ["think_aqal_projection"],
 };
@@ -698,9 +698,9 @@ const RULE_HIER_STAGE_TRANSITION: GrammarRule = {
   slots: {
     currentStage: (ctx) => ctx.structure.entities[0] ?? "the current developmental level",
     nextStage: (ctx) => ctx.structure.claims[0] ?? "the next developmental stage",
-    transitionCapacity: (ctx) => "increased cognitive complexity and perspective-taking ability",
+    transitionCapacity: (_ctx) => "increased cognitive complexity and perspective-taking ability",
     evidence: (ctx) => ctx.patterns.causal[0]?.description ?? ctx.structure.relationships[0] ?? "observable markers of the current stage",
-    includePrior: (ctx) => "transcends and includes",
+    includePrior: (_ctx) => "transcends and includes",
   },
   tools: ["think_hierarchical"],
 };
@@ -712,11 +712,11 @@ const RULE_HIER_LINE_DIFFERENTIATION: GrammarRule = {
   stepRange: [2, 4],
   template: "Line differentiation: {strongLine} operates at {strongLevel}, while {weakLine} lags at {weakLevel}. This creates {asymmetry}. Development is not uniform — lines grow independently.",
   slots: {
-    strongLine: (ctx) => "cognitive line",
+    strongLine: (_ctx) => "cognitive line",
     strongLevel: (ctx) => ctx.structure.claims[0] ?? "the highest developed line",
-    weakLine: (ctx) => "emotional or moral line",
-    weakLevel: (ctx) => "one or more stages behind the leading edge",
-    asymmetry: (ctx) => "an imbalanced developmental profile with characteristic blind spots",
+    weakLine: (_ctx) => "emotional or moral line",
+    weakLevel: (_ctx) => "one or more stages behind the leading edge",
+    asymmetry: (_ctx) => "an imbalanced developmental profile with characteristic blind spots",
   },
   tools: ["think_hierarchical"],
 };
@@ -732,9 +732,9 @@ const RULE_HIER_VISION_LOGIC: GrammarRule = {
       const substages = ["systematic", "metasystematic", "paradigmatic", "cross-paradigmatic"];
       return substages[ctx.stepNumber % substages.length];
     },
-    capacity: (ctx) => "hold multiple systems in awareness simultaneously",
-    integration: (ctx) => "cross-domain synthesis",
-    nextSubstep: (ctx) => "expanding the range of integrated perspectives",
+    capacity: (_ctx) => "hold multiple systems in awareness simultaneously",
+    integration: (_ctx) => "cross-domain synthesis",
+    nextSubstep: (_ctx) => "expanding the range of integrated perspectives",
   },
   tools: ["think_hierarchical"],
 };
@@ -747,10 +747,10 @@ const RULE_HIER_QUADRANT_MANIFESTATION: GrammarRule = {
   template: "Stage {stage} manifests across quadrants: Intentional as {intentional}, Behavioral as {behavioral}, Cultural as {cultural}, Social as {social}. Each quadrant expresses the same stage differently.",
   slots: {
     stage: (ctx) => String(ctx.stepNumber),
-    intentional: (ctx) => "subjective self-understanding and identity",
-    behavioral: (ctx) => "observable complexity of behavior",
-    cultural: (ctx) => "shared worldview and values",
-    social: (ctx) => "structural complexity of systems",
+    intentional: (_ctx) => "subjective self-understanding and identity",
+    behavioral: (_ctx) => "observable complexity of behavior",
+    cultural: (_ctx) => "shared worldview and values",
+    social: (_ctx) => "structural complexity of systems",
   },
   tools: ["think_hierarchical"],
 };
@@ -763,10 +763,10 @@ const RULE_HIER_NEXT_EDGE: GrammarRule = {
   template: "The growing edge is {growingEdge}, requiring {development}. The shadow of the current stage is {stageShadow}, and the path forward involves {path}. Growth requires {practice}.",
   slots: {
     growingEdge: (ctx) => ctx.structure.claims[0] ?? "the next developmental capacity",
-    development: (ctx) => "deliberate practice in the underdeveloped dimension",
+    development: (_ctx) => "deliberate practice in the underdeveloped dimension",
     stageShadow: (ctx) => ctx.patterns.shadows[0]?.shadow ?? "the characteristic limitation of the current stage",
-    path: (ctx) => "exposure to perspectives one stage more complex",
-    practice: (ctx) => "sustained engagement with complexity beyond current comfort",
+    path: (_ctx) => "exposure to perspectives one stage more complex",
+    practice: (_ctx) => "sustained engagement with complexity beyond current comfort",
   },
   tools: ["think_hierarchical"],
 };
@@ -782,7 +782,7 @@ const RULE_SHADOW_JUNGIAN: GrammarRule = {
   slots: {
     shadow: (ctx) => ctx.patterns.shadows[0]?.shadow ?? "the disowned aspect of the system",
     projection: (ctx) => ctx.structure.entities[1] ?? ctx.structure.entities[0] ?? "the external target of projection",
-    archetype: (ctx) => "the underlying archetypal pattern",
+    archetype: (_ctx) => "the underlying archetypal pattern",
     manifestation: (ctx) => ctx.patterns.shadows[0]?.manifests_as?.slice(0, 2).join(" and ") ?? "behaviors that contradict stated intentions",
     integration: (ctx) => ctx.patterns.shadows[0]?.integration_path ?? "conscious acknowledgment of the disowned content",
   },
@@ -799,8 +799,8 @@ const RULE_SHADOW_FREUDIAN: GrammarRule = {
     defense: (ctx) => ctx.patterns.shadows[0]?.manifests_as?.[0] ?? "repression or rationalization",
     anxiety: (ctx) => ctx.patterns.shadows[0]?.root_fear ?? "unconscious anxiety about unacceptable content",
     symptom: (ctx) => ctx.structure.uncertainties[0] ?? "the observable dysfunction",
-    impulse: (ctx) => "the repressed drive or desire",
-    superego: (ctx) => "the internalized prohibition against it",
+    impulse: (_ctx) => "the repressed drive or desire",
+    superego: (_ctx) => "the internalized prohibition against it",
   },
   tools: ["think_shadow"],
 };
@@ -816,7 +816,7 @@ const RULE_SHADOW_GESTALT: GrammarRule = {
     interruption: (ctx) => ctx.patterns.shadows[0]?.manifests_as?.[0] ?? "deflection, introjection, or projection",
     figure: (ctx) => ctx.structure.claims[0] ?? "what the system focuses on",
     ground: (ctx) => ctx.patterns.shadows[0]?.root_fear ?? "what the system ignores to maintain this focus",
-    boundary: (ctx) => "the boundary between self and environment",
+    boundary: (_ctx) => "the boundary between self and environment",
   },
   tools: ["think_shadow"],
 };
@@ -830,8 +830,8 @@ const RULE_SHADOW_INTEGRAL: GrammarRule = {
   slots: {
     altitude: (ctx) => ctx.structure.entities[0] ?? "current developmental",
     blindSpot: (ctx) => ctx.patterns.shadows[0]?.shadow ?? "its own developmental limitations",
-    reason: (ctx) => "every stage has a characteristic shadow it cannot perceive from within",
-    quadrantShadow: (ctx) => "shadow expressions in all four quadrants simultaneously",
+    reason: (_ctx) => "every stage has a characteristic shadow it cannot perceive from within",
+    quadrantShadow: (_ctx) => "shadow expressions in all four quadrants simultaneously",
     path: (ctx) => ctx.patterns.shadows[0]?.integration_path ?? "development to the next stage that can see what this one cannot",
   },
   tools: ["think_shadow"],
@@ -844,10 +844,10 @@ const RULE_SHADOW_ARCHETYPE_MATCH: GrammarRule = {
   stepRange: [2, 5],
   template: "Dominant archetype: {archetype}. The narrative pattern is {narrativePattern}, with {characterRole} as the system's role. The archetypal warning is {warning}, and the growth path is {growthPath}.",
   slots: {
-    archetype: (ctx) => "the Hero's Journey",
-    narrativePattern: (ctx) => "a call to adventure followed by resistance and transformation",
-    characterRole: (ctx) => "the protagonist facing an unknown challenge",
-    warning: (ctx) => "do not confuse the shadow with the enemy — it is a disowned part of self",
+    archetype: (_ctx) => "the Hero's Journey",
+    narrativePattern: (_ctx) => "a call to adventure followed by resistance and transformation",
+    characterRole: (_ctx) => "the protagonist facing an unknown challenge",
+    warning: (_ctx) => "do not confuse the shadow with the enemy — it is a disowned part of self",
     growthPath: (ctx) => ctx.patterns.shadows[0]?.integration_path ?? "integrating the shadow rather than fighting it",
   },
   tools: ["think_shadow"],
@@ -862,11 +862,11 @@ const RULE_UNITY_SUBSYSTEM_DIALOGUE: GrammarRule = {
   stepRange: [0, 3],
   template: "Subsystem dialogue: {subsystemA} observes {observationA}. {subsystemB} counters with {observationB}. The tension between them reveals {insight}.",
   slots: {
-    subsystemA: (ctx) => "Analytical subsystem",
+    subsystemA: (_ctx) => "Analytical subsystem",
     observationA: (ctx) => ctx.structure.claims[0] ?? "the logical structure holds under scrutiny",
-    subsystemB: (ctx) => "Critical subsystem",
+    subsystemB: (_ctx) => "Critical subsystem",
     observationB: (ctx) => ctx.structure.uncertainties[0] ?? "but the foundational assumptions remain unexamined",
-    insight: (ctx) => "the gap between logical coherence and epistemic grounding",
+    insight: (_ctx) => "the gap between logical coherence and epistemic grounding",
   },
   tools: ["think_unity"],
 };
@@ -878,11 +878,11 @@ const RULE_UNITY_CONTRADICTION_RESOLUTION: GrammarRule = {
   stepRange: [2, 5],
   template: "Contradiction detected between {system1} and {system2}: {contradiction}. Resolution: {resolution}. The contradiction is {type} — apparent or fundamental.",
   slots: {
-    system1: (ctx) => "the causal analysis",
-    system2: (ctx) => "the shadow assessment",
+    system1: (_ctx) => "the causal analysis",
+    system2: (_ctx) => "the shadow assessment",
     contradiction: (ctx) => ctx.structure.claims[0] ?? "conflicting conclusions about the same phenomenon",
     resolution: (ctx) => ctx.patterns.assumptions[0]?.reality ?? "a higher-order framework that accommodates both findings",
-    type: (ctx) => "apparent — resolvable at a higher level of integration",
+    type: (_ctx) => "apparent — resolvable at a higher level of integration",
   },
   tools: ["think_unity"],
 };
@@ -894,11 +894,11 @@ const RULE_UNITY_SYNTHESIS: GrammarRule = {
   stepRange: [4, 7],
   template: "Grand synthesis: across {count} subsystems, the integrated finding is {synthesis}. The convergent signal is {convergent}, the divergent signal is {divergent}, and the meta-insight is {metaInsight}.",
   slots: {
-    count: (ctx) => "six",
+    count: (_ctx) => "six",
     synthesis: (ctx) => ctx.structure.claims[0] ?? "a multi-dimensional understanding that no single subsystem could produce alone",
     convergent: (ctx) => ctx.patterns.causal[0]?.description ?? "where all subsystems agree",
     divergent: (ctx) => ctx.structure.uncertainties[0] ?? "where subsystems diverge, indicating productive tension",
-    metaInsight: (ctx) => "the process of integration itself reveals patterns invisible to any single lens",
+    metaInsight: (_ctx) => "the process of integration itself reveals patterns invisible to any single lens",
   },
   tools: ["think_unity"],
 };
@@ -911,7 +911,7 @@ const RULE_UNITY_EMERGENCE: GrammarRule = {
   template: "Emergent insight from subsystem interaction: {emergence}. This was not visible in any single subsystem but arose from {interaction}. The practical implication is {implication}.",
   slots: {
     emergence: (ctx) => ctx.structure.claims[1] ?? ctx.structure.claims[0] ?? "a pattern visible only through multi-lens integration",
-    interaction: (ctx) => "the dialogue between subsystems with different epistemic commitments",
+    interaction: (_ctx) => "the dialogue between subsystems with different epistemic commitments",
     implication: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "an intervention strategy informed by the full system view",
   },
   tools: ["think_unity"],
@@ -924,13 +924,13 @@ const RULE_UNITY_EPISTEMIC_WEIGHTING: GrammarRule = {
   stepRange: [2, 5],
   template: "Epistemic weighting: {strongSystem} carries {weightHigh} due to {justificationHigh}, while {weakSystem} carries {weightLow} due to {justificationLow}. The overall epistemic status is {epistemic}.",
   slots: {
-    strongSystem: (ctx) => "the subsystem with strongest evidence",
-    weightHigh: (ctx) => "high confidence",
-    justificationHigh: (ctx) => "robust pattern matching and convergent evidence",
-    weakSystem: (ctx) => "the subsystem with highest uncertainty",
-    weightLow: (ctx) => "provisional confidence",
+    strongSystem: (_ctx) => "the subsystem with strongest evidence",
+    weightHigh: (_ctx) => "high confidence",
+    justificationHigh: (_ctx) => "robust pattern matching and convergent evidence",
+    weakSystem: (_ctx) => "the subsystem with highest uncertainty",
+    weightLow: (_ctx) => "provisional confidence",
     justificationLow: (ctx) => ctx.structure.uncertainties[0] ?? "limited data and high complexity",
-    epistemic: (ctx) => "well-supported with acknowledged blind spots",
+    epistemic: (_ctx) => "well-supported with acknowledged blind spots",
   },
   tools: ["think_unity"],
 };
@@ -963,8 +963,8 @@ const RULE_CAUSAL_CYCLE_DETECTION: GrammarRule = {
   slots: {
     cycleType: (ctx) => ctx.subMode === "deductive" ? "Reinforcing (R)" : "Balancing (B)",
     cycleDescription: (ctx) => ctx.patterns.causal[0]?.description ?? "a feedback loop that amplifies or stabilizes the system",
-    archetypeName: (ctx) => "a recognized systems archetype",
-    behaviorPattern: (ctx) => "the system exhibits characteristic dynamics of this pattern",
+    archetypeName: (_ctx) => "a recognized systems archetype",
+    behaviorPattern: (_ctx) => "the system exhibits characteristic dynamics of this pattern",
   },
   tools: ["think_causal"],
 };
@@ -979,9 +979,9 @@ const RULE_CAUSAL_LEVERAGE_RANKING: GrammarRule = {
     rank: (ctx) => String(ctx.patterns.leveragePoints[0]?.meadows_rank ?? "6"),
     intervention: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "change the rules of the system",
     target: (ctx) => ctx.patterns.causal[0]?.structure.mechanism ?? "the feedback structure",
-    effectiveness: (ctx) => "high — structural intervention",
+    effectiveness: (_ctx) => "high — structural intervention",
     risk: (ctx) => ctx.patterns.leveragePoints[0]?.risk ?? "system resistance to change",
-    mitigation: (ctx) => "gradual implementation with feedback monitoring",
+    mitigation: (_ctx) => "gradual implementation with feedback monitoring",
   },
   tools: ["think_causal"],
 };
@@ -993,10 +993,10 @@ const RULE_CAUSAL_ARCHETYPE_INTERVENTION: GrammarRule = {
   stepRange: [3, 5],
   template: "Breaking the {archetype} pattern: the key is to {breakAction}. Currently, {symptom} reinforces the archetype. Shifting to {alternativeStructure} disrupts the cycle at {leveragePoint}.",
   slots: {
-    archetype: (ctx) => "the dominant systems pattern",
+    archetype: (_ctx) => "the dominant systems pattern",
     breakAction: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "address the root cause rather than symptoms",
     symptom: (ctx) => ctx.patterns.causal[0]?.structure.effect ?? "the observable dysfunction",
-    alternativeStructure: (ctx) => "a feedback structure that produces the desired outcome",
+    alternativeStructure: (_ctx) => "a feedback structure that produces the desired outcome",
     leveragePoint: (ctx) => `Meadows rank ${ctx.patterns.leveragePoints[0]?.meadows_rank ?? "N/A"}`,
   },
   tools: ["think_causal"],
@@ -1010,7 +1010,7 @@ const RULE_CAUSAL_MULTI_LOOP: GrammarRule = {
   template: "Multi-loop analysis: {loopCount} interacting loops create {dynamic}. The dominant loop at this stage is {dominantLoop}, but {emergingLoop} is gaining influence. The system behavior is {behavior}.",
   slots: {
     loopCount: (ctx) => String(Math.max(ctx.patterns.causal.length, 2)),
-    dynamic: (ctx) => "complex non-linear behavior",
+    dynamic: (_ctx) => "complex non-linear behavior",
     dominantLoop: (ctx) => ctx.subMode === "deductive" ? "the reinforcing growth engine" : "the balancing constraint",
     emergingLoop: (ctx) => ctx.subMode === "deductive" ? "the emerging balancing constraint" : "the emerging reinforcing dynamic",
     behavior: (ctx) => ctx.patterns.causal[0]?.description ?? "the net result of competing feedback forces",
@@ -1041,7 +1041,7 @@ const RULE_CYNEFIN_DOMAIN_CLASSIFICATION: GrammarRule = {
       if (domain.includes("complex")) return "Probe-Sense-Respond (safe-to-fail experiments)";
       return "Act-Sense-Respond (immediate action)";
     },
-    wrongResponse: (ctx) => "applying best practices to a complex problem",
+    wrongResponse: (_ctx) => "applying best practices to a complex problem",
   },
   tools: ["think_cynefin"],
 };
@@ -1058,8 +1058,8 @@ const RULE_CYNEFIN_RESPONSE_STRATEGY: GrammarRule = {
       if (ctx.structure.initial_position?.toLowerCase().includes("complex")) return "probe-sense-respond";
       return "analyze and respond";
     },
-    action: (ctx) => "running multiple small experiments to discover patterns",
-    counterAction: (ctx) => "seeking a single correct answer before acting",
+    action: (_ctx) => "running multiple small experiments to discover patterns",
+    counterAction: (_ctx) => "seeking a single correct answer before acting",
     timePressure: (ctx) => ctx.structure.uncertainties[0] ?? "moderate — time for experimentation",
     stakes: (ctx) => ctx.patterns.assumptions[0]?.cost_if_wrong ?? "the consequences of misclassification",
   },
@@ -1092,10 +1092,10 @@ const RULE_CYNEFIN_CATEGORICAL_SHIFT: GrammarRule = {
   template: "Category error detected: treating {situation} as {wrongCategory} when evidence points to {rightCategory}. This error leads to {consequence}. Correct by {correction}.",
   slots: {
     situation: (ctx) => ctx.structure.entities[0] ?? "the current situation",
-    wrongCategory: (ctx) => "a Complicated problem",
+    wrongCategory: (_ctx) => "a Complicated problem",
     rightCategory: (ctx) => ctx.structure.initial_position ?? "a Complex problem",
-    consequence: (ctx) => "over-analysis when experimentation is needed, or vice versa",
-    correction: (ctx) => "shifting from expert analysis to safe-to-fail probes",
+    consequence: (_ctx) => "over-analysis when experimentation is needed, or vice versa",
+    correction: (_ctx) => "shifting from expert analysis to safe-to-fail probes",
   },
   tools: ["think_cynefin"],
 };
@@ -1108,12 +1108,12 @@ const RULE_CYNEFIN_DECOMPOSITION: GrammarRule = {
   template: "Decomposing the situation: {componentA} is {domainA}, {componentB} is {domainB}, and {componentC} is {domainC}. Each sub-component requires a different response strategy: {strategies}.",
   slots: {
     componentA: (ctx) => ctx.structure.entities[0] ?? "the first aspect",
-    domainA: (ctx) => "Complicated",
+    domainA: (_ctx) => "Complicated",
     componentB: (ctx) => ctx.structure.entities[1] ?? "the second aspect",
-    domainB: (ctx) => "Complex",
-    componentC: (ctx) => "the operational context",
-    domainC: (ctx) => "Clear",
-    strategies: (ctx) => "expert analysis for Complicated, experimentation for Complex, best practices for Clear",
+    domainB: (_ctx) => "Complex",
+    componentC: (_ctx) => "the operational context",
+    domainC: (_ctx) => "Clear",
+    strategies: (_ctx) => "expert analysis for Complicated, experimentation for Complex, best practices for Clear",
   },
   tools: ["think_cynefin"],
 };
@@ -1134,9 +1134,9 @@ const RULE_SCENARIO_GENERATION: GrammarRule = {
     uncertaintyA: (ctx) => ctx.structure.uncertainties[0] ?? "the first critical uncertainty",
     stateA: (ctx) => ctx.subMode === "deductive" ? "favorable resolution" : "unfavorable resolution",
     uncertaintyB: (ctx) => ctx.structure.uncertainties[1] ?? ctx.structure.uncertainties[0] ?? "the second critical uncertainty",
-    stateB: (ctx) => "high regulatory adoption",
+    stateB: (_ctx) => "high regulatory adoption",
     narrative: (ctx) => ctx.structure.claims[0] ?? "a plausible future trajectory",
-    keyEvent: (ctx) => "the triggering event that sets the scenario in motion",
+    keyEvent: (_ctx) => "the triggering event that sets the scenario in motion",
   },
   tools: ["think_scenario"],
 };
@@ -1151,7 +1151,7 @@ const RULE_SCENARIO_CONSEQUENCE_CASCADE: GrammarRule = {
     scenario: (ctx) => ctx.structure.claims[0] ?? "the scenario",
     firstOrder: (ctx) => ctx.patterns.causal[0]?.structure.effect ?? "the immediate consequence",
     secondOrder: (ctx) => ctx.patterns.causal[1]?.structure.effect ?? "the adaptive response",
-    thirdOrder: (ctx) => "the systemic transformation that reshapes the landscape",
+    thirdOrder: (_ctx) => "the systemic transformation that reshapes the landscape",
     accelerator: (ctx) => ctx.patterns.causal[0]?.structure.mechanism ?? "the mechanism that amplifies effects across orders",
   },
   tools: ["think_scenario"],
@@ -1182,7 +1182,7 @@ const RULE_SCENARIO_EARLY_WARNINGS: GrammarRule = {
     signal: (ctx) => ctx.patterns.causal[0]?.structure.cause ?? "a leading indicator",
     scenario: (ctx) => ctx.structure.claims[0] ?? "an undesirable scenario",
     metric: (ctx) => ctx.patterns.causal[0]?.structure.effect ?? "a measurable variable",
-    threshold: (ctx) => "a predefined trigger point",
+    threshold: (_ctx) => "a predefined trigger point",
     response: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "a contingency plan",
     window: (ctx) => ctx.structure.uncertainties[0] ?? "the period between signal detection and scenario manifestation",
   },
@@ -1197,10 +1197,10 @@ const RULE_SCENARIO_ROBUST_STRATEGY: GrammarRule = {
   template: "Robust strategy across scenarios: {strategy} performs well in {scenarioCount} of {totalScenarios} scenarios. The no-regret moves are {noRegret}. The option value lies in {optionValue}.",
   slots: {
     strategy: (ctx) => ctx.structure.claims[0] ?? "the proposed strategic direction",
-    scenarioCount: (ctx) => "3",
-    totalScenarios: (ctx) => "4",
+    scenarioCount: (_ctx) => "3",
+    totalScenarios: (_ctx) => "4",
     noRegret: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "actions that benefit the organization regardless of which future unfolds",
-    optionValue: (ctx) => "maintaining flexibility to pivot as early warning signals emerge",
+    optionValue: (_ctx) => "maintaining flexibility to pivot as early warning signals emerge",
   },
   tools: ["think_scenario"],
 };
@@ -1220,7 +1220,7 @@ const RULE_META_LADDER_AUDIT: GrammarRule = {
     conclusion: (ctx) => ctx.structure.claims[1] ?? ctx.structure.claims[0] ?? "the action or judgment derived",
     fromRung: (ctx) => String(Math.min(ctx.stepNumber, 3)),
     toRung: (ctx) => String(Math.min(ctx.stepNumber + 1, 7)),
-    verification: (ctx) => "returning to observable data to confirm the inference",
+    verification: (_ctx) => "returning to observable data to confirm the inference",
   },
   tools: ["think_metacognitive"],
 };
@@ -1232,12 +1232,12 @@ const RULE_META_BIAS_DETECTION: GrammarRule = {
   stepRange: [2, 5],
   template: "Bias alert: {biasType} detected with {severity} severity. Manifestation: {manifestation}. This distorts {cognitiveProcess} by {distortion}. Counter: {countermeasure}.",
   slots: {
-    biasType: (ctx) => "confirmation bias",
-    severity: (ctx) => "high",
+    biasType: (_ctx) => "confirmation bias",
+    severity: (_ctx) => "high",
     manifestation: (ctx) => ctx.structure.claims[0] ?? "selective evidence gathering",
-    cognitiveProcess: (ctx) => "the evaluation of competing hypotheses",
-    distortion: (ctx) => "overweighting confirming evidence and discounting disconfirming data",
-    countermeasure: (ctx) => "actively seeking disconfirming evidence and using structured devil's advocacy",
+    cognitiveProcess: (_ctx) => "the evaluation of competing hypotheses",
+    distortion: (_ctx) => "overweighting confirming evidence and discounting disconfirming data",
+    countermeasure: (_ctx) => "actively seeking disconfirming evidence and using structured devil's advocacy",
   },
   tools: ["think_metacognitive"],
 };
@@ -1252,7 +1252,7 @@ const RULE_META_BLIND_SPOT: GrammarRule = {
     blindSpot: (ctx) => ctx.structure.uncertainties[0] ?? "an entire dimension of the problem",
     unasked: (ctx) => ctx.structure.implicit_assumptions[0] ?? "what would change if the opposite were true?",
     missingPerspective: (ctx) => ctx.structure.subject_type === "human" ? "the emotional dimension" : "the stakeholder who loses from this analysis",
-    action: (ctx) => "stepping outside the current reasoning frame",
+    action: (_ctx) => "stepping outside the current reasoning frame",
   },
   tools: ["think_metacognitive"],
 };
@@ -1264,9 +1264,9 @@ const RULE_META_RECURSIVE_LOOP: GrammarRule = {
   stepRange: [2, 4],
   template: "Recursive loop detected: the reasoning is {loopPattern}. This creates a self-reinforcing cycle where {reinforcement}. Breaking out requires {breakout}.",
   slots: {
-    loopPattern: (ctx) => "confirming its own premises through circular selection of evidence",
-    reinforcement: (ctx) => "each step finds evidence that supports the previous step's conclusion",
-    breakout: (ctx) => "introducing an external perspective or contradictory data source",
+    loopPattern: (_ctx) => "confirming its own premises through circular selection of evidence",
+    reinforcement: (_ctx) => "each step finds evidence that supports the previous step's conclusion",
+    breakout: (_ctx) => "introducing an external perspective or contradictory data source",
   },
   tools: ["think_metacognitive"],
 };
@@ -1278,11 +1278,11 @@ const RULE_META_RECONSTRUCTION: GrammarRule = {
   stepRange: [5, 7],
   template: "Bias-corrected reasoning: removing {bias} changes the conclusion from {original} to {corrected}. The confidence adjustment is {adjustment}. The revised epistemic status is {epistemic}.",
   slots: {
-    bias: (ctx) => "the identified cognitive distortion",
+    bias: (_ctx) => "the identified cognitive distortion",
     original: (ctx) => ctx.structure.claims[0] ?? "the original conclusion",
     corrected: (ctx) => ctx.patterns.assumptions[0]?.reality ?? "a more nuanced position with wider error bars",
-    adjustment: (ctx) => "reducing confidence by one level",
-    epistemic: (ctx) => "tentative — the corrected reasoning acknowledges greater uncertainty",
+    adjustment: (_ctx) => "reducing confidence by one level",
+    epistemic: (_ctx) => "tentative — the corrected reasoning acknowledges greater uncertainty",
   },
   tools: ["think_metacognitive"],
 };
@@ -1297,11 +1297,11 @@ const RULE_FP_CLAIM_CLASSIFICATION: GrammarRule = {
   template: "Claim classification: \"{claim}\" is classified as {category}. This means it {justification}. The {count} {type} elements in this claim require {action}.",
   slots: {
     claim: (ctx) => ctx.structure.claims[0] ?? "the proposition under analysis",
-    category: (ctx) => "inherited assumption",
-    justification: (ctx) => "it reflects cultural convention rather than empirical necessity",
+    category: (_ctx) => "inherited assumption",
+    justification: (_ctx) => "it reflects cultural convention rather than empirical necessity",
     count: (ctx) => String(ctx.structure.entities.length),
-    type: (ctx) => "factual",
-    action: (ctx) => "independent verification",
+    type: (_ctx) => "factual",
+    action: (_ctx) => "independent verification",
   },
   tools: ["think_first_principles"],
 };
@@ -1316,8 +1316,8 @@ const RULE_FP_SOCRATIC_INTERROGATION: GrammarRule = {
     assumption: (ctx) => ctx.structure.implicit_assumptions[0] ?? ctx.patterns.assumptions[0]?.assumption ?? "the underlying premise",
     origin: (ctx) => ctx.structure.claims[0] ?? "cultural inheritance or conventional wisdom",
     evidence: (ctx) => ctx.patterns.causal[0]?.description ?? "limited or circumstantial",
-    ifFalse: (ctx) => "the entire analytical structure would need rebuilding from verified facts",
-    status: (ctx) => "unverified — requires decomposition to irreducible components",
+    ifFalse: (_ctx) => "the entire analytical structure would need rebuilding from verified facts",
+    status: (_ctx) => "unverified — requires decomposition to irreducible components",
   },
   tools: ["think_first_principles"],
 };
@@ -1345,9 +1345,9 @@ const RULE_FP_RECONSTRUCTION: GrammarRule = {
   slots: {
     irreducible: (ctx) => ctx.structure.entities[0] ?? "the verified fundamental constraints",
     newApproach: (ctx) => ctx.structure.claims[0] ?? "a solution built from verified components only",
-    convention: (ctx) => "the inherited assumptions that were discarded",
+    convention: (_ctx) => "the inherited assumptions that were discarded",
     improvement: (ctx) => ctx.patterns.leveragePoints[0]?.intervention ?? "a more efficient or effective outcome",
-    reason: (ctx) => "the solution is not constrained by unexamined premises",
+    reason: (_ctx) => "the solution is not constrained by unexamined premises",
   },
   tools: ["think_first_principles"],
 };
@@ -1396,7 +1396,7 @@ const RULE_NAV_PARALLEL_GROUPING: GrammarRule = {
   template: "Parallel execution group: [{groupNodes}] can run concurrently because {justification}. Estimated throughput gain: {gain}. Sequential dependencies: {sequential}.",
   slots: {
     groupNodes: (ctx) => `nodes ${ctx.stepNumber}-${Math.min(ctx.stepNumber + 2, ctx.totalSteps - 1)}`,
-    justification: (ctx) => "no shared state or cross-dependencies between these reasoning steps",
+    justification: (_ctx) => "no shared state or cross-dependencies between these reasoning steps",
     gain: (ctx) => `${Math.min(ctx.stepNumber + 1, 3)}x with parallel sub-agents`,
     sequential: (ctx) => ctx.patterns.causal[0]?.structure.mechanism ?? "the dependency chain that must execute in order",
   },
@@ -1413,8 +1413,8 @@ const RULE_NAV_REPLANNING: GrammarRule = {
     trigger: (ctx) => ctx.structure.uncertainties[0] ?? "a node output failed quality threshold",
     affectedNodes: (ctx) => `${ctx.stepNumber} and downstream dependents`,
     newPath: (ctx) => ctx.structure.claims[0] ?? "an alternative reasoning sequence",
-    adaptation: (ctx) => "replacing failed nodes and re-evaluating dependency chains",
-    quality: (ctx) => "0.7 minimum confidence for node acceptance",
+    adaptation: (_ctx) => "replacing failed nodes and re-evaluating dependency chains",
+    quality: (_ctx) => "0.7 minimum confidence for node acceptance",
   },
   tools: ["think_navigator"],
 };
@@ -1446,7 +1446,7 @@ const RULE_NAV_DEPENDENCY_ANALYSIS: GrammarRule = {
     criticalPath: (ctx) => `nodes 0 → ${ctx.stepNumber} → ${ctx.totalSteps - 1}`,
     bottleneck: (ctx) => ctx.patterns.causal[0]?.structure.mechanism ?? "the thinking tool with longest execution time",
     risk: (ctx) => ctx.structure.uncertainties[0] ?? "cascade failure if a critical node underperforms",
-    optimization: (ctx) => "parallelize non-critical path nodes and pre-fetch context for dependent nodes",
+    optimization: (_ctx) => "parallelize non-critical path nodes and pre-fetch context for dependent nodes",
   },
   tools: ["think_navigator"],
 };

@@ -9,7 +9,7 @@ import {
 } from "../constants.js";
 import { formatUnity } from "../utils/formatters.js";
 import { composeToolContent } from "../utils/content-pipeline.js";
-import type { EpistemicStatus, SuggestedTool, OutputMode, ThoughtType } from "../types.js";
+import type { EpistemicStatus, SuggestedTool, ThoughtType } from "../types.js";
 
 const OUTPUT_DEPTH_ENUM = z.enum(["essential", "standard", "exhaustive"]);
 
@@ -531,7 +531,11 @@ export function registerTool(server: McpServer): void {
     {
       title: "Unity Multi-System Analysis",
       description:
-        "The meta-tool that applies 6 different analytical lenses simultaneously and creates dialogue between them. Subsystems: LoDS (Levels), LiDS (Lines), SoCS (States), DriS (Drives), QuaS (Quadrants), ShWS (Shadow). The inter-system dialogue creates emergent insights no single lens could produce.",
+        "Generates a multi-lens analysis applying 6 analytical subsystems and synthesizing their outputs. Subsystems: " +
+        "LoDS (Levels), LiDS (Lines), SoCS (States), DriS (Drives), QuaS (Quadrants), ShWS (Shadow). Each subsystem " +
+        "produces a structured analysis following its respective framework, and the tool generates an inter-system " +
+        "synthesis section that cross-references findings across all lenses. The output follows a template-based framework " +
+        "that organizes results by subsystem and then produces an integrated summary.",
       inputSchema: z.object({
         query: z.string().describe("The central question or phenomenon being analyzed"),
         developmental_context: z.string().describe("Developmental background and trajectory of the system"),

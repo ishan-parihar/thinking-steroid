@@ -104,7 +104,7 @@ function generateQuadrantAnalysis(params: {
   stepNumber?: number;
   totalSteps?: number;
 }): QuadrantAnalysis {
-  const { quadrant, situation, stakeholders, observableData, reportedExperience, culturalContext, systemicContext, depth, subjectType, composerCtx, stepNumber, totalSteps } = params;
+  const { quadrant, situation, stakeholders, observableData, reportedExperience, culturalContext, systemicContext, depth, subjectType, composerCtx } = params;
 
   const depthModifier = depth === "essential" ? "concisely" : depth === "exhaustive" ? "with maximum granularity and multi-layered depth" : "with balanced thoroughness";
 
@@ -171,6 +171,7 @@ function getStrategiesForSubjectType(quadrant: Quadrant, depth: OutputDepth, sub
 }
 
 function generateStrategies(quadrant: Quadrant, depth: OutputDepth, subjectType: SubjectType, composerCtx?: AqalComposerContext): string[] {
+  let composedStrategies: string[] = [];
   if (composerCtx) {
     const composed = composeToolContent({
       toolName: "think_aqal_situational",
@@ -183,16 +184,26 @@ function generateStrategies(quadrant: Quadrant, depth: OutputDepth, subjectType:
       thoughtType: "diagnostic",
       previousOutputs: [],
     });
-    if (composed.length > 200) {
+    if (composed.length > 100) {
+      // Try to parse bullet lines first
       const parsedLines = composed.split('\n').filter(l => l.trim().length > 0 && l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, ''));
       if (parsedLines.length > 0) {
-        return parsedLines;
+        composedStrategies = parsedLines;
+      } else {
+        // Composed content is prose — extract sentences with relaxed threshold
+        const sentenceStrategies = extractSentences(composed, 1, 5);
+        if (sentenceStrategies.length > 0) {
+          composedStrategies = sentenceStrategies;
+        } else {
+          // Prose exists but couldn't be split — use the trimmed content as a single strategy
+          const trimmed = composed.trim().slice(0, 500);
+          if (trimmed.length > 20) {
+            composedStrategies = [trimmed];
+          }
+        }
       }
-      // Composed content exists but has no bullet lines — parse by sentences
-      const sentenceStrategies = extractSentences(composed, 3, 5);
-      if (sentenceStrategies.length >= 3) {
-        return sentenceStrategies;
-      }
+      // Prefix composed items to distinguish from template content
+      composedStrategies = composedStrategies.map(s => s.startsWith("Analysis: ") ? s : `Analysis: ${s}`);
     }
   }
 
@@ -289,14 +300,20 @@ function generateStrategies(quadrant: Quadrant, depth: OutputDepth, subjectType:
     },
   };
 
-  // For non-human subjects, typeStrategies may have some items but fewer than 3 at 'essential' depth.
-  // For 'human' subjects, typeStrategies is empty. Always combine with strategySets to ensure minimum.
+  // Merge: composed (if any) + type-specific + fallback, deduplicated
   const fallbackStrategies = strategySets[quadrant][depth];
-  if (typeStrategies.length > 0) {
-    const combined = [...new Set([...typeStrategies, ...fallbackStrategies])];
-    return combined;
+  const allItems = [...composedStrategies, ...typeStrategies, ...fallbackStrategies];
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const item of allItems) {
+    // Normalize for dedup: strip "Analysis: " prefix when comparing
+    const normalized = item.replace(/^Analysis: /, '').trim().toLowerCase();
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      unique.push(item);
+    }
   }
-  return fallbackStrategies;
+  return unique;
 }
 
 function getAiSystemStrategies(quadrant: Quadrant, depth: OutputDepth): string[] {
@@ -391,6 +408,7 @@ function getEffectsForSubjectType(quadrant: Quadrant, depth: OutputDepth, subjec
 }
 
 function generateSecondOrderEffects(quadrant: Quadrant, depth: OutputDepth, subjectType: SubjectType, composerCtx?: AqalComposerContext): string[] {
+  let composedEffects: string[] = [];
   if (composerCtx) {
     const composed = composeToolContent({
       toolName: "think_aqal_situational",
@@ -403,16 +421,22 @@ function generateSecondOrderEffects(quadrant: Quadrant, depth: OutputDepth, subj
       thoughtType: "prospective",
       previousOutputs: [],
     });
-    if (composed.length > 200) {
+    if (composed.length > 100) {
       const parsedLines = composed.split('\n').filter(l => l.trim().length > 0 && l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, ''));
       if (parsedLines.length > 0) {
-        return parsedLines;
+        composedEffects = parsedLines;
+      } else {
+        const sentenceEffects = extractSentences(composed, 1, 4);
+        if (sentenceEffects.length > 0) {
+          composedEffects = sentenceEffects;
+        } else {
+          const trimmed = composed.trim().slice(0, 500);
+          if (trimmed.length > 20) {
+            composedEffects = [trimmed];
+          }
+        }
       }
-      // Composed content exists but has no bullet lines — parse by sentences
-      const sentenceEffects = extractSentences(composed, 2, 4);
-      if (sentenceEffects.length >= 2) {
-        return sentenceEffects;
-      }
+      composedEffects = composedEffects.map(s => s.startsWith("Analysis: ") ? s : `Analysis: ${s}`);
     }
   }
 
@@ -505,13 +529,18 @@ function generateSecondOrderEffects(quadrant: Quadrant, depth: OutputDepth, subj
     },
   };
 
-  // Same merge logic as generateStrategies: combine type-specific with fallback to ensure minimum.
   const fallbackEffects = effectSets[quadrant][depth];
-  if (typeEffects.length > 0) {
-    const combined = [...new Set([...typeEffects, ...fallbackEffects])];
-    return combined;
+  const allItems = [...composedEffects, ...typeEffects, ...fallbackEffects];
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const item of allItems) {
+    const normalized = item.replace(/^Analysis: /, '').trim().toLowerCase();
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      unique.push(item);
+    }
   }
-  return fallbackEffects;
+  return unique;
 }
 
 function getAiSystemEffects(quadrant: Quadrant, depth: OutputDepth): string[] {
@@ -606,8 +635,6 @@ function generatePsychograph(params: {
   subjectType: SubjectType;
 }): PsychographProfile[] {
   const { situation, stakeholders, observableData, reportedExperience, culturalContext, systemicContext, lines, depth, subjectType } = params;
-
-  const depthModifier = depth === "essential" ? "briefly" : depth === "exhaustive" ? "with granular specificity" : "with reasonable clarity";
 
   const fullText = `${situation} ${stakeholders} ${observableData} ${reportedExperience} ${culturalContext} ${systemicContext}`.toLowerCase();
 
@@ -829,22 +856,19 @@ export function registerTool(server: McpServer): void {
     {
       title: "AQAL Situational Analysis",
       description:
-        "Performs a comprehensive Integral AQAL (All Quadrants, All Levels) situational analysis that forces " +
-        "balance across all four quadrants of reality: Intentional/Subjective (interior individual — thoughts, " +
-        "feelings, self-identity), Behavioral/Objective (exterior individual — observable behavior, metrics, " +
-        "physical processes), Cultural/Inter-subjective (interior collective — shared values, worldviews, " +
-        "collective meaning), and Social/Inter-objective (exterior collective — systems, institutions, " +
+        "Generates a structured AQAL analysis across four quadrants following the Integral AQAL (All Quadrants, All Levels) framework. " +
+        "Output covers: Intentional/Subjective (interior individual — thoughts, feelings, self-identity), Behavioral/Objective " +
+        "(exterior individual — observable behavior, metrics, physical processes), Cultural/Inter-subjective (interior collective — " +
+        "shared values, worldviews, collective meaning), and Social/Inter-objective (exterior collective — systems, institutions, " +
         "structures, infrastructure).\n\n" +
-        "Each quadrant produces: a context summary that synthesizes the input data through that quadrant's " +
-        "epistemological lens, a solution summary that identifies the intervention approach for that dimension, " +
-        "a set of actionable strategies scaled by output depth, and a map of second-order effects that reveals " +
-        "the downstream consequences of quadrant-specific interventions.\n\n" +
-        "The analysis also includes a 2×2 quadrant overview table for quick reference and cross-quadrant " +
-        "dynamics analysis that examines how changes in one quadrant ripple through the others.\n\n" +
-        "Use this tool when facing complex situations where single-perspective analysis is insufficient — " +
-        "organizational change, conflict resolution, strategic planning, policy analysis, or any context " +
-        "where interior and exterior, individual and collective dimensions must all be considered for a " +
-        "complete understanding.",
+        "Each quadrant produces: a context summary synthesizing input data through that quadrant's perspective, a solution summary " +
+        "identifying intervention approaches for that dimension, actionable strategies scaled by output depth, and a map of second-order " +
+        "effects showing potential downstream consequences of quadrant-specific interventions.\n\n" +
+        "The output also includes a 2×2 quadrant overview table for quick reference and cross-quadrant dynamics analysis examining how " +
+        "changes in one quadrant may relate to changes in others.\n\n" +
+        "Use this tool when facing complex situations where single-perspective analysis is insufficient — organizational change, " +
+        "conflict resolution, strategic planning, policy analysis, or any context where interior and exterior, individual and " +
+        "collective dimensions should all be considered.",
       inputSchema: z
         .object({
           situation: z

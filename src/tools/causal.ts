@@ -13,7 +13,9 @@ import type {
 } from "../types.js";
 import { SYSTEMS_ARCHETYPES, LEVERAGE_POINTS, CHARACTER_LIMIT } from "../constants.js";
 import { CAUSAL_PATTERNS, LEVERAGE_PATTERNS } from "../constants/patterns.js";
-import { composeToolContent, getStructureForText } from "../utils/content-pipeline.js";
+import { composeToolContent } from "../utils/content-pipeline.js";
+
+type ComposeSectionFn = (stepNumber: number, totalSteps: number, thoughtType: ThoughtType, previousOutputs: string[]) => string;
 
 function enforceLimit(text: string): string {
   if (text.length <= CHARACTER_LIMIT) return text;
@@ -410,7 +412,6 @@ function generateSemanticRelationships(
 ): CausalRelationship[] {
   const relationships = [...existing];
   const existingPairs = new Set(relationships.map((r) => `${r.from}→${r.to}`));
-  const contextLower = problemStatement.toLowerCase();
 
   // Generate relationships based on variable polarity hints
   for (const variable of variables) {
@@ -489,7 +490,7 @@ function generateSemanticRelationships(
 function ensureGraphHasCycles(
   variables: string[],
   relationships: CausalRelationship[],
-  requiredCount: number,
+  _requiredCount: number,
   problemStatement: string,
 ): CausalRelationship[] {
   if (variables.length < 2) return relationships;
@@ -546,7 +547,7 @@ function generateCausalRelationships(
   variables: string[],
   problemContext: string,
   knownFeedbackLoops?: string,
-  knownConstraints?: string,
+  _knownConstraints?: string,
   requiredCount?: number,
 ): CausalRelationship[] {
   const count = requiredCount ?? 5;
@@ -607,18 +608,6 @@ function hashPolarity(a: string, b: string): CausalPolarity {
   return Math.abs(hash) % 2 === 0 ? "+" : "-";
 }
 
-function determineRelationshipType(
-  from: string,
-  to: string,
-  knownLoops: string[],
-): "direct" | "indirect" | "moderated" {
-  const loopMentions = knownLoops.some(
-    (loop) => loop.toLowerCase().includes(from.toLowerCase()) && loop.toLowerCase().includes(to.toLowerCase()),
-  );
-  if (loopMentions) return "direct";
-  return hashPolarity(from, to) === "+" ? "direct" : "indirect";
-}
-
 function generateRelationshipDescription(
   from: string,
   to: string,
@@ -627,7 +616,6 @@ function generateRelationshipDescription(
   constraints?: string,
 ): string {
   const direction = polarity === "+" ? "increases" : "decreases";
-  const inverseDirection = polarity === "+" ? "decreases" : "increases";
   const constraintNote = constraints
     ? ` (subject to: ${constraints.substring(0, 80)})`
     : "";
@@ -640,6 +628,7 @@ function detectFeedbackLoops(
   relationships: CausalRelationship[],
   requiredCount: number,
   problemContext: string,
+  composeSection?: ComposeSectionFn,
 ): FeedbackLoop[] {
   const loops: FeedbackLoop[] = [];
   const adjacencyMap = new Map<string, { target: string; polarity: CausalPolarity }[]>();
@@ -694,14 +683,32 @@ function detectFeedbackLoops(
   const hasR = loops.some((l) => l.type === "reinforcing");
   const hasB = loops.some((l) => l.type === "balancing");
 
+  let result: FeedbackLoop[];
   if (hasR && hasB) {
     const rLoops = loops.filter((l) => l.type === "reinforcing");
     const bLoops = loops.filter((l) => l.type === "balancing");
-    const result = [rLoops[0], bLoops[0], ...loops.filter((l) => l !== rLoops[0] && l !== bLoops[0])];
-    return result.slice(0, requiredCount);
+    result = [rLoops[0], bLoops[0], ...loops.filter((l) => l !== rLoops[0] && l !== bLoops[0])];
+  } else {
+    result = [...loops];
   }
 
-  return loops.slice(0, requiredCount);
+  const finalLoops = result.slice(0, requiredCount);
+
+  // Enrich descriptions via content composer
+  if (composeSection) {
+    const composedDescriptions: string[] = [];
+    for (let i = 0; i < finalLoops.length; i++) {
+      const loop = finalLoops[i];
+      const thoughtType: ThoughtType = i === 0 ? "deconstructive" : "relational";
+      const composed = composeSection(i + 1, requiredCount + 2, thoughtType, composedDescriptions);
+      if (composed.length > 80) {
+        loop.description = `${loop.description}\n\nContextual insight: ${composed}`;
+      }
+      composedDescriptions.push(loop.description);
+    }
+  }
+
+  return finalLoops;
 }
 
 function generateLoopName(
@@ -785,6 +792,7 @@ function generateLeveragePoints(
   loops: FeedbackLoop[],
   problemContext: string,
   depth: OutputDepth,
+  composeSection?: ComposeSectionFn,
 ): LeveragePoint[] {
   const allCategories: LeveragePointCategory[] = [
     "transcend-paradigm",
@@ -818,7 +826,16 @@ function generateLeveragePoints(
       ? ` Relevant patterns detected: ${matchingPatterns.slice(0, 2).map((p) => p.description).join("; ")}.`
       : "";
 
-    const intervention = generateIntervention(category, variables, loops, problemContext) + patternContext;
+    let intervention = generateIntervention(category, variables, loops, problemContext) + patternContext;
+
+    if (composeSection) {
+      const categoryIndex = allCategories.indexOf(category);
+      const composed = composeSection(categoryIndex + 1, 12, "synthetic", []);
+      if (composed.length > 80) {
+        intervention = `${composed}\n\nTemplate intervention: ${intervention}`;
+      }
+    }
+
     const impact = generateImpactDescription(category, variables, problemContext, matchingPatterns);
 
     leveragePoints.push({
@@ -839,7 +856,6 @@ function generateIntervention(
   loops: FeedbackLoop[],
   context: string,
 ): string {
-  const primaryVar = variables[0] ?? "the system";
   const contextLower = context.toLowerCase();
 
   const interventions: Record<LeveragePointCategory, string> = {
@@ -886,6 +902,7 @@ function detectArchetypes(
   relationships: CausalRelationship[],
   loops: FeedbackLoop[],
   problemContext: string,
+  composeSection?: ComposeSectionFn,
 ): ArchetypeDetection[] {
   const detections: ArchetypeDetection[] = [];
 
@@ -903,7 +920,19 @@ function detectArchetypes(
   strong.sort((a, b) => b.evidence.length - a.evidence.length);
   partials.sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
 
-  return [...strong.slice(0, 3), ...partials.slice(0, 2)];
+  const result = [...strong.slice(0, 3), ...partials.slice(0, 2)];
+
+  if (composeSection) {
+    const totalArchetypes = Object.keys(SYSTEMS_ARCHETYPES).length;
+    for (let i = 0; i < result.length; i++) {
+      const composed = composeSection(i + 1, totalArchetypes, "perspectival", []);
+      if (composed.length > 60) {
+        result[i].evidence = `${result[i].evidence}\n\nAdditional context: ${composed}`;
+      }
+    }
+  }
+
+  return result;
 }
 
 function evaluateArchetypeMatch(
@@ -915,8 +944,6 @@ function evaluateArchetypeMatch(
   context: string,
 ): ArchetypeDetection | null {
   const contextLower = context.toLowerCase();
-  const reinforcingLoops = loops.filter((l) => l.type === "reinforcing");
-  const balancingLoops = loops.filter((l) => l.type === "balancing");
 
   // Structural loop topology analysis
   const structuralScore = analyzeArchetypeStructure(key, variables, loops, relationships);
@@ -1028,9 +1055,6 @@ function analyzeArchetypeStructure(
 
   const sharedVars = (a: FeedbackLoop, b: FeedbackLoop): string[] =>
     a.variables.filter((v) => b.variables.includes(v));
-
-  const loopHasKeyword = (loop: FeedbackLoop, keywords: string[]): boolean =>
-    keywords.some((kw) => loop.variables.some((v) => v.toLowerCase().includes(kw)));
 
   const negativeRelCount = relationships.filter((r) => r.polarity === "-").length;
 
@@ -1204,8 +1228,6 @@ function analyzeArchetypeStructure(
       return { confidence: 0, evidence: "" };
     }
   }
-
-  return { confidence: 0, evidence: "" };
 }
 
 function generateOutput(
@@ -1380,11 +1402,10 @@ export function registerTool(server: McpServer): void {
     {
       title: "Causal Loop Analysis",
       description:
-        "Performs causal loop analysis of a systemic problem. Maps variables and their causal relationships " +
-        "with polarities (+/-), identifies reinforcing (R) and balancing (B) feedback loops, ranks intervention " +
-        "points using Donella Meadows' 12 Leverage Points framework, and detects systems archetypes. " +
-        "Best for understanding why interventions backfire, finding high-leverage intervention points, " +
-        "and mapping circular causality.\n\n" +
+        "Generates a causal loop analysis mapping variables, their causal relationships with polarities (+/-), " +
+        "reinforcing (R) and balancing (B) feedback loops, intervention points ranked using Donella Meadows' " +
+        "12 Leverage Points framework, and systems archetypes. The output follows a template-based framework " +
+        "that structures systemic analysis into consistent sections.\n\n" +
         "The analysis depth controls detail level: 'essential' produces 3 relationships and 1 loop for quick " +
         "assessment, 'standard' produces 5 relationships and 2 loops for thorough analysis, and 'exhaustive' " +
         "produces 10+ relationships and 4+ loops for comprehensive examination.\n\n" +
@@ -1456,6 +1477,20 @@ export function registerTool(server: McpServer): void {
         // Ensure minimum 4 variables for meaningful cycle detection
         const enrichedVariables = supplementVariables(key_variables, problem_statement, 4);
 
+        const fullText = `${problem_statement} ${enrichedVariables.join(" ")}`;
+        const composeSection: ComposeSectionFn = (stepNumber, totalSteps, thoughtType, previousOutputs) =>
+          composeToolContent({
+            toolName: "think_causal",
+            text: fullText,
+            initialPosition: problem_statement,
+            mode: "analytical",
+            subMode: "deductive",
+            stepNumber,
+            totalSteps,
+            thoughtType,
+            previousOutputs,
+          });
+
         const relationships = generateCausalRelationships(
           enrichedVariables,
           problem_statement,
@@ -1469,6 +1504,7 @@ export function registerTool(server: McpServer): void {
           relationships,
           loopCount,
           problem_statement,
+          composeSection,
         );
 
         const leveragePoints = generateLeveragePoints(
@@ -1476,6 +1512,7 @@ export function registerTool(server: McpServer): void {
           loops,
           problem_statement,
           output_depth,
+          composeSection,
         );
 
         const archetypes = detectArchetypes(
@@ -1483,6 +1520,7 @@ export function registerTool(server: McpServer): void {
           relationships,
           loops,
           problem_statement,
+          composeSection,
         );
 
         const epistemicStatus = determineEpistemicStatus(output_depth, known_feedback_loops);

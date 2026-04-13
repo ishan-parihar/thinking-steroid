@@ -1,15 +1,12 @@
-import assert from "node:assert";
 import { extractProblemStructure } from "../utils/problem-structure.js";
 import { classifyDomain, getPrimaryDomain } from "../utils/domain-classifier.js";
 import { retrievePatterns, buildGraphQuery } from "../utils/graph-engine.js";
 import { composeToolContent } from "../utils/content-pipeline.js";
 import {
   createSession,
-  getSession,
   updateNode,
   getReadyNodes,
   shouldReplan,
-  replan,
   terminateSession,
 } from "../utils/state-manager.js";
 
