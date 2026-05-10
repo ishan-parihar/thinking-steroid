@@ -15,12 +15,8 @@ It transforms the agent from a "next-token predictor" into a **Structured Reason
 ---
 
 ## 🚩 The Problem: The "Reasoning Flatland"
+Standard LLM reasoning is often a linear "stream of consciousness." Even with "Chain-of-Thought," agents suffer from **Conclusion Jumping** (skipping alternatives), **Confirmation Bias** (selective evidence gathering), and **Synthesis Blindness** (ignoring dialectical tensions). Most critically, agents apply a "one-size-fits-all" reasoning path regardless of whether the problem is "Clear" (linear) or "Complex" (emergent). The challenge was to move beyond prompt-based guidance and implement **hard cognitive constraints** that force the agent into specific, mathematically and psychologically grounded reasoning topologies.
 
-Standard LLM reasoning is often a linear "stream of consciousness." Even with "Chain-of-Thought," agents suffer from:
-- **Conclusion Jumping**: Moving from data to a decision without exploring alternatives.
-- **Confirmation Bias**: Only searching for evidence that supports the first viable hypothesis.
-- **Synthesis Blindness**: Failing to see the tension between two opposing but equally true facts (Polarity).
-- **Domain Mismatch**: Applying "Clear" domain logic (step-by-step) to "Complex" domain problems (emergent patterns).
 
 ## 💡 The Solution: Forced Cognitive Modalities
 
@@ -40,16 +36,15 @@ Standard LLM reasoning is often a linear "stream of consciousness." Even with "C
 
 ## ✨ Engineering Highlights
 
-### 🛠 Design Principles
-- **Epistemic Status**: Every tool output includes a status (`well-supported`, `tentative`, `speculative`), allowing the agent to weight findings.
-- **Guided Reasoning Paths**: Tools don't just return data; they return **Suggested Follow-ups**, creating a guided "reasoning graph."
-- **Zod-Strict Validation**: Every input is validated with `.strict()` schemas, ensuring the agent cannot hallucinate parameters.
-- **Depth Control**: Support for `essential` | `standard` | `exhaustive` depths, allowing the agent to scale its cognitive effort based on the problem's importance.
+### Reasoning Topology as a Constraint
+Rather than providing optional hints, this server implements **Hard Modality Constraints**. By structuring tools as rigid topologies (e.g., the 4-quadrant AQAL situational map or Causal Loop feedback patterns), I force the LLM to occupy a specific epistemic space. This prevents the agent from reverting to linear "next-token" prediction and ensures that critical dimensions of a problem—such as dialectical tension or systemic leverage points—are explicitly mapped.
 
-### 🏗 Architecture
-- **Pure Computation**: Zero external API dependencies. The server is a pure transformation layer between the Agent and the Framework.
-- **Functional Formatters**: All thinking modalities are implemented as pure functions, ensuring deterministic and testable outputs.
-- **stdio Transport**: Optimized for seamless integration with Claude Desktop and other MCP-compatible clients.
+### DAG-Based Reasoning Orchestration
+With the implementation of `think_navigator`, the server evolves from a tool library into a **Cognitive Orchestrator**. It allows agents to construct a Directed Acyclic Graph (DAG) of reasoning steps, where the output of a "First Principles" decomposition feeds into a "Causal Loop" analysis. This provides a persistable and auditable reasoning chain, enabling the agent to track dependencies and execute parallel cognitive paths.
+
+### Epistemic Status Framework
+To combat hallucination, I implemented an **Epistemic Status Layer**. Every tool output is tagged with a confidence marker (`well-supported`, `tentative`, `speculative`). This creates a meta-layer of certainty, forcing the agent to explicitly label its own speculation and allowing downstream tools (like `think_metacognitive`) to audit the reasoning chain for gaps in evidence.
+
 
 ---
 
