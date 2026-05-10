@@ -1,158 +1,94 @@
-# Thinking Modes MCP Server
+# Thinking Modes MCP Server 🧠
 
-Structured thinking modality tools for AI agents — 12 tools spanning sequential reasoning, polarity mapping, AQAL analysis, developmental stage mapping, shadow work, causal loop analysis, Cynefin domain classification, scenario planning, metacognitive audit, first-principles decomposition, and Unity multi-system synthesis.
+**The Epistemic Operating System for AI Agents.**
 
-## Quick Start
+[![TypeScript](https://img.shields.io/badge/language-TypeScript-blue.svg)](https://www.typescriptlang.org/)
+[![Bun](https://img.shields.io/badge/runtime-Bun-black.svg)](https://bun.sh/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![MCP](https://img.shields.io/badge/Protocol-MCP-purple.svg)](https://modelcontextprotocol.io/)
+[![Zod](https://img.shields.io/badge/Validation-Zod-blue)](https://zod.dev/)
 
+`Thinking Modes` is a specialized MCP server that provides AI agents with a structured library of **Cognitive Modalities**. Rather than relying on the LLM's default (and often biased) reasoning path, this server forces the agent to adopt specific, mathematically and psychologically grounded thinking frameworks.
+
+It transforms the agent from a "next-token predictor" into a **Structured Reasoner**, capable of dialectical tension mapping, causal loop analysis, and multi-system synthesis.
+
+---
+
+## 🚩 The Problem: The "Reasoning Flatland"
+
+Standard LLM reasoning is often a linear "stream of consciousness." Even with "Chain-of-Thought," agents suffer from:
+- **Conclusion Jumping**: Moving from data to a decision without exploring alternatives.
+- **Confirmation Bias**: Only searching for evidence that supports the first viable hypothesis.
+- **Synthesis Blindness**: Failing to see the tension between two opposing but equally true facts (Polarity).
+- **Domain Mismatch**: Applying "Clear" domain logic (step-by-step) to "Complex" domain problems (emergent patterns).
+
+## 💡 The Solution: Forced Cognitive Modalities
+
+`Thinking Modes` provides 12 precision tools that act as **Reasoning Constraints**. By invoking a tool, the agent is forced to structure its output according to a specific epistemic framework.
+
+### The Modality Catalog
+- **Sequential Reasoning**: Forces claims $\to$ confidence $\to$ assumptions $\to$ counter-arguments.
+- **Polarity Mapping**: Maps dialectical tensions to prevent premature synthesis.
+- **AQAL Analysis**: A 4-quadrant holistic view (Individual/Collective $\times$ Interior/Exterior).
+- **Causal Loop Analysis**: Maps feedback loops (R/B) and identifies high-leverage intervention points.
+- **Cynefin Classification**: A meta-tool that classifies the problem domain (Clear, Complicated, Complex, Chaotic) to determine *which other tools* to use.
+- **First-Principles Decomposition**: Strips a problem down to its irreducible physical or logical facts.
+- **Shadow Work**: A Jungian-inspired framework for detecting blind spots and unconscious biases.
+- **Unity Synthesis**: The terminal tool that integrates multiple disparate analyses into a single, coherent truth.
+
+---
+
+## ✨ Engineering Highlights
+
+### 🛠 Design Principles
+- **Epistemic Status**: Every tool output includes a status (`well-supported`, `tentative`, `speculative`), allowing the agent to weight findings.
+- **Guided Reasoning Paths**: Tools don't just return data; they return **Suggested Follow-ups**, creating a guided "reasoning graph."
+- **Zod-Strict Validation**: Every input is validated with `.strict()` schemas, ensuring the agent cannot hallucinate parameters.
+- **Depth Control**: Support for `essential` | `standard` | `exhaustive` depths, allowing the agent to scale its cognitive effort based on the problem's importance.
+
+### 🏗 Architecture
+- **Pure Computation**: Zero external API dependencies. The server is a pure transformation layer between the Agent and the Framework.
+- **Functional Formatters**: All thinking modalities are implemented as pure functions, ensuring deterministic and testable outputs.
+- **stdio Transport**: Optimized for seamless integration with Claude Desktop and other MCP-compatible clients.
+
+---
+
+## 🌌 Potentialities & Future Scope
+
+`Thinking Modes` is a prototype for **Cognitive Architecture**:
+
+- **Recursive Reasoning**: An agent that uses `think_metacognitive` to audit its own `think_sequential` output, iteratively refining its truth-claim.
+- **Autonomous Modality Selection**: A system where the agent automatically invokes the correct thinking mode based on the detected problem domain (via `think_cynefin`).
+- **Epistemic Mapping**: Generating a visual map of "Certainty" across a complex project, highlighting exactly where the agent is speculating versus where it has hard data.
+
+---
+
+## 🚀 Quick Start
+
+### Installation
 ```bash
+git clone https://github.com/ishan-parihar/thinking-steroid.git
+cd thinking-steroid
 npm install
 npm run build
-# Use via stdio transport (e.g., with Claude Desktop or MCP client)
-node dist/index.js
-# Development mode
-npm run dev
 ```
 
-## Tool Catalog
-
-### Core Tools (Original 7)
-
-| Tool | What It Does | Best For |
-| --- | --- | --- |
-| `think_sequential` | Step-by-step reasoning with claims, confidence, assumptions, counter-arguments, and **reasoning sub-modes** (deductive/inductive/abductive/analogical) | Breaking down complex problems, avoiding conclusion-jumping |
-| `think_polarity` | Dialectical tension mapping with 9-row polarity map + 16x4 integration spectrum + **systems archetype detection** (Senge's 10 archetypes) | Counteracting premature synthesis bias, mapping trade-offs, detecting systemic patterns |
-| `think_aqal_situational` | 4-quadrant analysis with strategies and 2nd-order effects + **optional psychograph** (7 lines of development) | Holistic situation analysis + developmental line profiling |
-| `think_aqal_projection` | Temporal projections across 4 quadrants at short/mid/long-term horizons | Understanding how change unfolds at different rates per dimension |
-| `think_hierarchical` | Developmental stage mapping across 8 stages x 4 quadrants + **optional vision-logic substage analysis** | Mapping developmental trajectory and next growth edges |
-| `think_shadow` | Multi-framework shadow analysis + **shadow pattern detection** + **Jungian archetype matching** | Revealing unconscious patterns, blind spots, hidden dynamics |
-| `think_unity` | 6-subsystem multi-lens analysis with inter-system dialogue | Grand synthesis integrating all perspectives |
-
-### New Tools (5)
-
-| Tool | Framework | What It Does | Best For |
-| --- | --- | --- | --- |
-| `think_causal` | Causal Loops + Meadows' 12 Leverage Points + Systems Archetypes | Maps feedback loops (R/B), ranks intervention points 1-12, detects archetypes | Understanding why interventions backfire, finding high-leverage points |
-| `think_cynefin` | Cynefin Framework (Snowden) | Classifies situations into Clear/Complicated/Complex/Chaotic/Disorder domains | **Meta-tool**: determines WHICH thinking tools are appropriate |
-| `think_scenario` | Scenario Planning + Pre-Mortem + Futures Wheel | 2x2 scenario matrix, pre-mortem failure analysis, 3 orders of consequences | Strategic planning, risk anticipation, exploring multiple futures |
-| `think_metacognitive` | Ladder of Inference + 20-Bias Cognitive Audit | Traces reasoning from data to action, detects biases, finds blind spots | **Quality control**: catching reasoning errors before decisions |
-| `think_first_principles` | First-Principles Reasoning + Socratic Decomposition | Reduces problems to irreducible facts, separates assumptions from constraints | Breaking free from analogy-based reasoning |
-
-## Common Parameters
-
-All 12 tools support:
-
-| Parameter | Values | Default | Description |
-| --- | --- | --- | --- |
-| `output_depth` | `essential` / `standard` / `exhaustive` | `standard` | Analysis depth: 3/5/7 steps, relationship count, detail level |
-| `output_mode` | `executive` / `analytical` / `exploratory` | `analytical` | Output format: brief decision-oriented / detailed evidence-heavy / possibility-rich |
-
-### Tool-Specific Optional Parameters
-
-| Tool | Parameter | Description |
-| --- | --- | --- |
-| `think_sequential` | `reasoning_sub_mode` | `deductive` / `inductive` / `abductive` / `analogical` |
-| `think_aqal_situational` | `assess_lines` | Enables psychograph analysis of 7 developmental lines |
-| `think_hierarchical` | `assess_vision_logic` | Enables vision-logic substage analysis |
-
-## Composition Patterns
-
-### Meta-Tool Routing (New)
-```
-think_cynefin → determines domain → routes to appropriate tools → synthesize
+### MCP Configuration
+Add to your `claude_desktop_config.json`:
+```json
+"mcpServers": {
+  "thinking-modes": {
+    "command": "node",
+    "args": ["/path/to/thinking-steroid/dist/index.js"]
+  }
+}
 ```
 
-### Deep Analysis Chain
-```
-think_sequential → think_polarity → think_aqal_situational → think_shadow → think_unity
-```
+## 🛠 Tech Stack
+- **Language**: TypeScript
+- **Runtime**: Bun / Node.js
+- **Protocol**: MCP (Model Context Protocol)
+- **Validation**: Zod
 
-### Strategic Foresight Pipeline
-```
-think_scenario → think_causal → think_metacognitive → think_unity
-```
-
-### Breakthrough Innovation
-```
-think_first_principles → think_sequential → think_causal → think_scenario
-```
-
-### Quality-Controlled Analysis
-```
-[any analysis tool] → think_metacognitive → [revise based on bias findings] → think_unity
-```
-
-### Parallel 3D Map
-```
-think_aqal_situational + think_aqal_projection + think_hierarchical (run in parallel, synthesize)
-```
-
-### Shadow-Infused
-```
-think_shadow first, then feed shadow insights as context into any other tool
-```
-
-### Unity Grand Synthesis
-```
-Run all tools independently → feed all outputs into think_unity as the terminal synthesizer
-```
-
-## Architecture Upgrades
-
-### Epistemic Awareness
-Every tool output includes an **Epistemic Status** (`well-supported` / `tentative` / `speculative`) so downstream tools can weight findings appropriately.
-
-### Cross-Tool Guidance
-Every tool output includes **Suggested Follow-ups** — recommended tools to run next based on analysis findings, creating guided reasoning paths.
-
-### Output Modes
-- **Executive**: Truncated to key findings, 2-sentence summaries, decision-oriented
-- **Analytical**: Full detail, evidence-heavy, standard output
-- **Exploratory**: Adds "Open Questions" section with 3 probing questions
-
-## Design Principles
-
-- **Input forces specificity** — tools reject underspecified input rather than guessing
-- **Output creates reusable artifacts** — structured outputs designed for downstream tool consumption
-- **Depth parameter** — every tool supports `essential` | `standard` | `exhaustive` depth levels
-- **Coordinates over descriptions** — positions on spectra, not vague text
-- **Tools compose** — outputs feed into other tools via suggested_followup guidance
-- **Meta-reasoning built in** — each tool reveals something about the reasoning process itself
-
-## Architecture
-
-- **Pure computation** — no external APIs, zero dependencies beyond MCP SDK + Zod
-- **Zod validation** on all inputs with `.strict()` schemas
-- **stdio transport** for agent/CLI use cases
-- **Formatters as pure functions** — fully testable, composable
-
-## Project Structure
-
-```
-thinking-modes-mcp-server/
-├── src/
-│   ├── index.ts              # MCP server entry point (12 tools)
-│   ├── types.ts              # Shared TypeScript types (30+ exports)
-│   ├── constants.ts          # Shared constants (13 domain data exports)
-│   ├── tools/
-│   │   ├── sequential.ts     # think_sequential (+ reasoning_sub_mode)
-│   │   ├── polarity.ts       # think_polarity (+ systems archetype detection)
-│   │   ├── aqal-situational.ts   # think_aqal_situational (+ psychograph)
-│   │   ├── aqal-projection.ts    # think_aqal_projection
-│   │   ├── hierarchical.ts   # think_hierarchical (+ vision-logic substages)
-│   │   ├── shadow.ts         # think_shadow (+ shadow patterns + Jungian archetypes)
-│   │   ├── unity.ts          # think_unity
-│   │   ├── causal.ts         # think_causal (NEW)
-│   │   ├── cynefin.ts        # think_cynefin (NEW)
-│   │   ├── scenario.ts       # think_scenario (NEW)
-│   │   ├── metacognitive.ts  # think_metacognitive (NEW)
-│   │   └── first-principles.ts  # think_first_principles (NEW)
-│   └── utils/
-│       └── formatters.ts     # Pure formatting functions (12 formatters)
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## License
-
-MIT
+---
+Developed by [Ishan Parihar](https://github.com/ishan-parihar) to enhance the cognitive depth and epistemic rigor of AI agents.
