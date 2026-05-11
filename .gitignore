@@ -3,3 +3,6 @@ dist/
 .contexty
 .memsearch
 .hive
+
+# AI agent plans
+.sisyphus/
