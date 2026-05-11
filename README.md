@@ -87,3 +87,5 @@ Add to your `claude_desktop_config.json`:
 
 ---
 Developed by [Ishan Parihar](https://github.com/ishan-parihar) to enhance the cognitive depth and epistemic rigor of AI agents.
+
+If you find this project useful, [consider supporting its development](https://rzp.io/rzp/ishan-parihar)
