@@ -16,6 +16,12 @@ import { registerTool as registerScenario } from "./tools/scenario.js";
 import { registerTool as registerNavigator } from "./tools/navigator.js";
 import { initializePersistence } from "./utils/state-manager.js";
 
+// AXI §10: Server identity header
+const AXI_HEADER = {
+  name: "thinking-modes-mcp-server",
+  version: "1.0.0",
+};
+
 const INSTRUCTIONS =
   "This server provides 13 thinking modality tools that structure AI agent reasoning. " +
   "Each tool forces a different reasoning topology. " +
@@ -45,8 +51,8 @@ async function main(): Promise<void> {
 
   const server = new McpServer(
     {
-      name: "thinking-modes-mcp-server",
-      version: "1.0.0",
+      name: AXI_HEADER.name,
+      version: AXI_HEADER.version,
     },
     {
       instructions: INSTRUCTIONS,
