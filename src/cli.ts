@@ -43,20 +43,80 @@ function toolInfo(name: string): void {
       parameters: { poles: "{a: string, b: string} (required)", context: "string (optional)" },
       returns: "Polarity map with archetype and recommendations",
     },
+    think_aqal_situational: {
+      name: "think_aqal_situational",
+      description: "4-quadrant situational analysis (internal/external × individual/collective)",
+      parameters: { situation: "string (required)", include_psychograph: "boolean (optional)" },
+      returns: "AQAL quadrants with analysis and optional psychograph",
+    },
+    think_aqal_projection: {
+      name: "think_aqal_projection",
+      description: "Temporal projections across AQAL quadrants",
+      parameters: { situation: "string (required)", timeframes: "string[] (optional)" },
+      returns: "Projected outcomes across past/present/future in each quadrant",
+    },
+    think_hierarchical: {
+      name: "think_hierarchical",
+      description: "Developmental stage mapping with vision-logic substages",
+      parameters: { situation: "string (required)", include_substages: "boolean (optional)" },
+      returns: "Developmental stage analysis with level recommendations",
+    },
+    think_shadow: {
+      name: "think_shadow",
+      description: "Unconscious pattern detection with Jungian archetypes",
+      parameters: { situation: "string (required)", depth: "essential|standard|exhaustive (default standard)" },
+      returns: "Shadow patterns, archetypal motifs, and integration recommendations",
+    },
+    think_unity: {
+      name: "think_unity",
+      description: "Multi-system grand synthesis across all modalities",
+      parameters: { situation: "string (required)", inputs: "object[] (optional)" },
+      returns: "Unified synthesis integrating all reasoning modalities",
+    },
+    think_cynefin: {
+      name: "think_cynefin",
+      description: "Domain classification (clear/complicated/complex/chaotic/disordered) for tool routing",
+      parameters: { situation: "string (required)" },
+      returns: "Cynefin domain classification with recommended response strategy",
+    },
+    think_causal: {
+      name: "think_causal",
+      description: "Causal loop diagrams + Meadows leverage points + systems archetypes",
+      parameters: { situation: "string (required)", include_leverage_points: "boolean (optional)" },
+      returns: "Causal loops, leverage points, and systems archetypes",
+    },
+    think_metacognitive: {
+      name: "think_metacognitive",
+      description: "Ladder of inference + cognitive bias audit",
+      parameters: { situation: "string (required)", reasoning_trace: "string (optional)" },
+      returns: "Metacognitive analysis with bias detection and debiasing strategies",
+    },
+    think_first_principles: {
+      name: "think_first_principles",
+      description: "Socratic decomposition from bedrock facts + reconstruction",
+      parameters: { problem: "string (required)", assumptions: "string[] (optional)" },
+      returns: "Decomposed assumptions and reconstructed solution from first principles",
+    },
+    think_scenario: {
+      name: "think_scenario",
+      description: "2x2 scenario matrix + pre-mortem + futures wheel",
+      parameters: { situation: "string (required)", axes: "{x: string, y: string} (optional)" },
+      returns: "Scenario matrix with pre-mortem analysis and futures wheel",
+    },
     think_navigator: {
       name: "think_navigator",
       description: "DAG-based reasoning planning with dependency tracking and parallel execution",
-      parameters: { problem: "string (required)", plan: "array of reasoning nodes (optional)" },
-      returns: "Reasoning plan with dependencies and execution status",
+      parameters: { problem: "string (required)", plan: "array (optional)" },
+      returns: "Reasoning plan with dependencies, execution status, and progress tracking",
     },
   };
   if (info[name]) {
     console.log(JSON.stringify(info[name], null, 2));
   } else {
-    console.error(JSON.stringify({ error: `Unknown tool: '${name}'`, help: `Valid tools: ${TOOLS.map(t => t[0]).join(", ")}` }));
+    console.error(JSON.stringify({ error: `Unknown tool: '''${name}'''`, help: `Valid tools: ${Object.keys(info).sort().join(", ")}` }));
     process.exit(2);
   }
-}
+}}
 
 const args = process.argv.slice(2);
 if (args.includes("--list-tools")) {
