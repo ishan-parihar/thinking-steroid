@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
-import { execSync } from "child_process";
+// AXI §8: content-first CLI for tool discovery
+// AXI §9: contextual disclosure via --tool-info
 
-const TOOLS = [
+const TOOLS: [string, string][] = [
   ["think_sequential", "Step-by-step sequential reasoning with branching paths"],
   ["think_polarity", "Dialectical tension mapping between opposing poles"],
   ["think_aqal_situational", "4-quadrant situational analysis with optional psychograph"],
@@ -19,9 +20,9 @@ const TOOLS = [
 ];
 
 function listTools(): void {
-  console.log(`tools[${TOOLS.length}]{name,description}:`);
+  console.log("tools[" + TOOLS.length + "]{name,description}:");
   for (const [name, desc] of TOOLS) {
-    console.log(`  ${name},${desc}`);
+    console.log("  " + name + "," + desc);
   }
   console.log();
   console.log("help[2]:");
@@ -29,8 +30,15 @@ function listTools(): void {
   console.log("  Run `thinking-steroid` to start the MCP server");
 }
 
+interface ToolInfo {
+  name: string;
+  description: string;
+  parameters: Record<string, string>;
+  returns: string;
+}
+
 function toolInfo(name: string): void {
-  const info: Record<string, any> = {
+  const info: Record<string, ToolInfo> = {
     think_sequential: {
       name: "think_sequential",
       description: "Step-by-step sequential reasoning with branching paths",
@@ -45,7 +53,7 @@ function toolInfo(name: string): void {
     },
     think_aqal_situational: {
       name: "think_aqal_situational",
-      description: "4-quadrant situational analysis (internal/external × individual/collective)",
+      description: "4-quadrant situational analysis (internal/external x individual/collective)",
       parameters: { situation: "string (required)", include_psychograph: "boolean (optional)" },
       returns: "AQAL quadrants with analysis and optional psychograph",
     },
@@ -113,11 +121,13 @@ function toolInfo(name: string): void {
   if (info[name]) {
     console.log(JSON.stringify(info[name], null, 2));
   } else {
-    console.error(JSON.stringify({ error: `Unknown tool: '''${name}'''`, help: `Valid tools: ${Object.keys(info).sort().join(", ")}` }));
+    const valid = Object.keys(info).sort().join(", ");
+    console.error(JSON.stringify({ error: "Unknown tool: '" + name + "'", help: "Valid tools: " + valid }));
     process.exit(2);
   }
-}}
+}
 
+// --- CLI entry point (AXI SS8: content-first home view via --list-tools) ---
 const args = process.argv.slice(2);
 if (args.includes("--list-tools")) {
   listTools();
@@ -130,13 +140,11 @@ if (args.includes("--list-tools")) {
   }
   toolInfo(name);
 } else {
-  // No CLI args — run MCP server (AXI §8: content-first home view is via --list-tools)
-  // Import index.js which starts the MCP server via stdio transport
+  // No CLI args - run MCP server
   import("./index.js").then(() => {
-    process.stderr.write("thinking-modes-mcp-server started via CLI
-");
-  }).catch((err) => {
-    console.error(JSON.stringify({ error: `Failed to start MCP server: ${err.message}` }));
+    process.stderr.write("thinking-modes-mcp-server started via CLI\n");
+  }).catch((err: Error) => {
+    console.error(JSON.stringify({ error: "Failed to start MCP server: " + err.message }));
     process.exit(1);
   });
 }
