@@ -131,5 +131,12 @@ if (args.includes("--list-tools")) {
   toolInfo(name);
 } else {
   // No CLI args — run MCP server (AXI §8: content-first home view is via --list-tools)
-  import("./index.js");
+  // Import index.js which starts the MCP server via stdio transport
+  import("./index.js").then(() => {
+    process.stderr.write("thinking-modes-mcp-server started via CLI
+");
+  }).catch((err) => {
+    console.error(JSON.stringify({ error: `Failed to start MCP server: ${err.message}` }));
+    process.exit(1);
+  });
 }
