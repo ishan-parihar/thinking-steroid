@@ -2,6 +2,11 @@
 
 // AXI §8: content-first CLI for tool discovery
 // AXI §9: contextual disclosure via --tool-info
+// AXI §1: Token-efficient TOON output format
+
+import { truncateStr, axiError, getBinPath, formatText } from "./utils/toon.js";
+
+const VERSION = "1.0.0";
 
 const TOOLS: [string, string][] = [
   ["think_sequential", "Step-by-step sequential reasoning with branching paths"],
@@ -19,10 +24,32 @@ const TOOLS: [string, string][] = [
   ["think_navigator", "DAG-based reasoning planning with dependency tracking"],
 ];
 
-function listTools(): void {
-  console.log("tools[" + TOOLS.length + "]{name,description}:");
+// AXI §10: Server identity + AXI §8: Content-first home view
+function showHomeView(): void {
+  const binPath = getBinPath();
+  
+  console.log(`bin: ${binPath}`);
+  console.log(`description: Structure AI agent reasoning with 13 cognitive modalities`);
+  console.log();
+  
+  // Show tools in TOON format (AXI §2: minimal schema with name + description)
+  console.log(`tools[${TOOLS.length}]{name,description}:`);
   for (const [name, desc] of TOOLS) {
-    console.log("  " + name + "," + desc);
+    console.log(`  ${name},${truncateStr(desc, 60)}`);
+  }
+  console.log();
+  
+  // AXI §9: Contextual disclosure - suggest next steps
+  console.log("help[3]:");
+  console.log("  Run `thinking-steroid --tool-info <name>` for detailed parameters");
+  console.log("  Run `thinking-steroid --list-tools` to see all tools");
+  console.log("  Run `thinking-steroid` to start the MCP server");
+}
+
+function listTools(): void {
+  console.log(`tools[${TOOLS.length}]{name,description}:`);
+  for (const [name, desc] of TOOLS) {
+    console.log(`  ${name},${truncateStr(desc, 60)}`);
   }
   console.log();
   console.log("help[2]:");
@@ -119,32 +146,72 @@ function toolInfo(name: string): void {
     },
   };
   if (info[name]) {
-    console.log(JSON.stringify(info[name], null, 2));
+    console.log(formatText(info[name], outFormat));
   } else {
+    // AXI §6: Structured error with actionable help
     const valid = Object.keys(info).sort().join(", ");
-    console.error(JSON.stringify({ error: "Unknown tool: '" + name + "'", help: "Valid tools: " + valid }));
-    process.exit(2);
+    axiError(`Unknown tool: '${name}'`, `Valid tools: ${valid}`);
   }
 }
 
-// --- CLI entry point (AXI SS8: content-first home view via --list-tools) ---
+function showHelp(): void {
+  console.log(`thinking-steroid v${VERSION}`);
+  console.log("Structure AI agent reasoning with 13 cognitive modalities");
+  console.log();
+  console.log("Usage:");
+  console.log("  thinking-steroid                 Start MCP server (stdio)");
+  console.log("  thinking-steroid --list-tools    List all available tools");
+  console.log("  thinking-steroid --tool-info <n> Show details for a specific tool");
+  console.log("  thinking-steroid --help          Show this help message");
+  console.log();
+  console.log("Examples:");
+  console.log("  thinking-steroid --tool-info think_sequential");
+  console.log("  thinking-steroid --list-tools");
+  console.log("  thinking-steroid | claude");
+}
+
+// --- CLI entry point ---
 const args = process.argv.slice(2);
-if (args.includes("--list-tools")) {
+
+// Parse flags
+const hasListTools = args.includes("--list-tools");
+const hasToolInfo = args.includes("--tool-info");
+const hasHelp = args.includes("--help") || args.includes("-h");
+const hasJson = args.includes("--json");
+const outFormat = hasJson ? "json" : "toon";
+
+// Get positional arguments (non-flag args)
+const positionalArgs = args.filter(a => !a.startsWith("--") && a !== "-h");
+
+if (hasHelp) {
+  showHelp();
+} else if (hasListTools) {
   listTools();
-} else if (args.includes("--tool-info")) {
+} else if (hasToolInfo) {
   const idx = args.indexOf("--tool-info");
   const name = args[idx + 1];
   if (!name) {
-    console.error(JSON.stringify({ error: "--tool-info requires a tool name" }));
-    process.exit(2);
+    axiError("--tool-info requires a tool name", "Usage: thinking-steroid --tool-info <tool-name>");
   }
   toolInfo(name);
+} else if (positionalArgs.length === 0 && args.length === 0) {
+  // AXI §8: No-args shows content-first home view with live state
+  showHomeView();
 } else {
-  // No CLI args - run MCP server
-  import("./index.js").then(() => {
-    process.stderr.write("thinking-modes-mcp-server started via CLI\n");
-  }).catch((err: Error) => {
-    console.error(JSON.stringify({ error: "Failed to start MCP server: " + err.message }));
-    process.exit(1);
-  });
+  // Check for unknown flags
+  const knownFlags = ["--list-tools", "--tool-info", "--help"];
+  const unknownFlags = args.filter(a => a.startsWith("--") && !knownFlags.includes(a));
+  
+  if (unknownFlags.length > 0) {
+    axiError(`Unknown flag: '${unknownFlags[0]}'`, "Valid flags: --list-tools, --tool-info, --help");
+  } else if (positionalArgs.length > 0) {
+    axiError(`Unknown argument: '${positionalArgs[0]}'`, "Run `thinking-steroid --help` for usage");
+  } else {
+    // No CLI args - run MCP server
+    import("./index.js").then(() => {
+      process.stderr.write("thinking-modes-mcp-server started via CLI\n");
+    }).catch((err: Error) => {
+      axiError("Failed to start MCP server: " + err.message, "Check that @modelcontextprotocol/sdk is installed");
+    });
+  }
 }
