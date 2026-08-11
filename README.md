@@ -5,6 +5,7 @@
 **The Epistemic Operating System for AI Agents.**
 
 [![TypeScript](https://img.shields.io/badge/language-TypeScript-blue.svg)](https://www.typescriptlang.org/)
+![LOC](https://img.shields.io/badge/LOC-25.0K-informational?style=flat-square)
 [![CI](https://github.com/ishan-parihar/thinking-steroid/actions/workflows/ci.yml/badge.svg)](https://github.com/ishan-parihar/thinking-steroid/actions/workflows/ci.yml)
 [![Bun](https://img.shields.io/badge/runtime-Bun-black.svg)](https://bun.sh/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
