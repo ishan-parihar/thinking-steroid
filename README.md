@@ -6,6 +6,7 @@
 
 [![TypeScript](https://img.shields.io/badge/language-TypeScript-blue.svg)](https://www.typescriptlang.org/)
 ![LOC](https://img.shields.io/badge/LOC-25.0K-informational?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 [![CI](https://github.com/ishan-parihar/thinking-steroid/actions/workflows/ci.yml/badge.svg)](https://github.com/ishan-parihar/thinking-steroid/actions/workflows/ci.yml)
 [![Bun](https://img.shields.io/badge/runtime-Bun-black.svg)](https://bun.sh/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -19,11 +20,11 @@ It transforms the agent from a "next-token predictor" into a **Structured Reason
 
 ---
 
-## 🚩 The Problem: The "Reasoning Flatland"
+## The Problem: The "Reasoning Flatland"
 Standard LLM reasoning is often a linear "stream of consciousness." Even with "Chain-of-Thought," agents suffer from **Conclusion Jumping** (skipping alternatives), **Confirmation Bias** (selective evidence gathering), and **Synthesis Blindness** (ignoring dialectical tensions). Most critically, agents apply a "one-size-fits-all" reasoning path regardless of whether the problem is "Clear" (linear) or "Complex" (emergent). The challenge was to move beyond prompt-based guidance and implement **hard cognitive constraints** that force the agent into specific, mathematically and psychologically grounded reasoning topologies.
 
 
-## 💡 The Solution: Forced Cognitive Modalities
+## The Solution: Forced Cognitive Modalities
 
 `Thinking Modes` provides 13 precision tools that act as **Reasoning Constraints**. By invoking a tool, the agent is forced to structure its output according to a specific epistemic framework.
 
@@ -106,7 +107,7 @@ const synthesis = await client.callTool("think_unity", {
 
 Thinking Modes doesn't *suggest* better thinking — it *forces* a specific, mathematically grounded framework per task, so the agent cannot fall back to its default reasoning path.
 
-## ✨ Engineering Highlights
+## Engineering Highlights
 
 ### Reasoning Topology as a Constraint
 Rather than providing optional hints, this server implements **Hard Modality Constraints**. By structuring tools as rigid topologies (e.g., the 4-quadrant AQAL situational map or Causal Loop feedback patterns), I force the LLM to occupy a specific epistemic space. This prevents the agent from reverting to linear "next-token" prediction and ensures that critical dimensions of a problem—such as dialectical tension or systemic leverage points—are explicitly mapped.
@@ -120,7 +121,7 @@ To combat hallucination, I implemented an **Epistemic Status Layer**. Every tool
 
 ---
 
-## 🌌 Potentialities & Future Scope
+## Potentialities & Future Scope
 
 `Thinking Modes` is a prototype for **Cognitive Architecture**:
 
@@ -130,7 +131,7 @@ To combat hallucination, I implemented an **Epistemic Status Layer**. Every tool
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 ```bash
@@ -151,7 +152,7 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-## 🛠 Tech Stack
+## Tech Stack
 - **Language**: TypeScript
 - **Runtime**: Bun / Node.js
 - **Protocol**: MCP (Model Context Protocol)
