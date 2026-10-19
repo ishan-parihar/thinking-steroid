@@ -5,13 +5,10 @@
 **The Epistemic Operating System for AI Agents.**
 
 [![TypeScript](https://img.shields.io/badge/language-TypeScript-blue.svg)](https://www.typescriptlang.org/)
-![LOC](https://img.shields.io/badge/LOC-25.0K-informational?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 [![CI](https://github.com/ishan-parihar/thinking-steroid/actions/workflows/ci.yml/badge.svg)](https://github.com/ishan-parihar/thinking-steroid/actions/workflows/ci.yml)
 [![Bun](https://img.shields.io/badge/runtime-Bun-black.svg)](https://bun.sh/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/Protocol-MCP-purple.svg)](https://modelcontextprotocol.io/)
-[![Zod](https://img.shields.io/badge/Validation-Zod-blue)](https://zod.dev/)
 [![Tests](https://img.shields.io/badge/tests-13%20modes-brightgreen)]()
 
 `Thinking Modes` is a specialized MCP server that provides AI agents with a structured library of **Cognitive Modalities**. Rather than relying on the LLM's default (and often biased) reasoning path, this server forces the agent to adopt specific, mathematically and psychologically grounded thinking frameworks.

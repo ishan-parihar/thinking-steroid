@@ -12,6 +12,6 @@
 | [`ROADMAP.md`](planning/ROADMAP.md) | PLAN | Thinking-Steroids MCP — Progressive Refactoring Roadmap | — |
 | [`TOOL_ANALYSIS_REPORT.md`](planning/TOOL_ANALYSIS_REPORT.md) | PLAN | Thinking-Steroid Tools: Comprehensive Stress-Test Analysis | — |
 | [`UPGRADE_PLAN.md`](planning/UPGRADE_PLAN.md) | PLAN | Thinking-Steroid v2.0 — Comprehensive Upgrade Plan | — |
-| [`SESSION_HOOKS.md`](SESSION_HOOKS.md) | Session Hooks — Ambient Context at Session Start — AXI §7: Register your tool into the agent's session lifecycle so every conversation starts with relevant state… |
-| [`2026-04-12-TOOL_DEFINITION_AUDIT.md`](audit/2026-04-12-TOOL_DEFINITION_AUDIT.md) | Tool Definition Audit: UX for AI Agents — This is not inherently bad — structured thinking is valuable. But the current tool descriptions over-promise u… |
+| [`SESSION_HOOKS.md`](SESSION_HOOKS.md) | Session Hooks — Ambient Context at Session Start — AXI §7: Register your tool into the agent's session lifecycle so every conversation starts with relevant state… | Session Hooks — Ambient Context at Session Start — AXI §7: Register your tool into the agent's session lifecycle so every conversation starts with rele… | — |
+| [`2026-04-12-TOOL_DEFINITION_AUDIT.md`](audit/2026-04-12-TOOL_DEFINITION_AUDIT.md) | Tool Definition Audit: UX for AI Agents — This is not inherently bad — structured thinking is valuable. But the current tool descriptions over-promise u… | Tool Definition Audit: UX for AI Agents — This is not inherently bad — structured thinking is valuable. But the current tool descriptions over… | — |
 | [`RECORDS.md`](RECORDS.md) | LIVE | Records — decisions (AD) and regressions (RG) — Generated zones below are written by genome rec emit; never hand-edit them. Topic → governing record… | — |
