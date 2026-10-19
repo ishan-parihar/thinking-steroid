@@ -18,6 +18,8 @@
 
 It transforms the agent from a "next-token predictor" into a **Structured Reasoner**, capable of dialectical tension mapping, causal loop analysis, and multi-system synthesis.
 
+- [Page index](docs/PAGE-INDEX.md) — every active doc and the question it owns.
+
 ---
 
 ## The Problem: The "Reasoning Flatland"
