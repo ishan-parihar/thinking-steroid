@@ -6,7 +6,7 @@ AXI §7: Register your tool into the agent's session lifecycle so every conversa
 
 At session start, the hook runs your CLI with no arguments and injects the output as context. The agent sees live state (tool count, modality names, server status) before it takes any action.
 
-## Installation
+## Session Hook Installation
 
 ### Claude Code
 
